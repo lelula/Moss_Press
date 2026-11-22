@@ -151,6 +151,9 @@ body.dragging iframe{pointer-events:none}
     <section>
       <h2>Title page</h2>
       <label>Title<input type="text" id="f_title"></label>
+      <label>Or use an image for the title<select id="s_titleimg"></select></label>
+      <label>Title image width (in)<input type="number" step="0.1" min="0.5" id="s_titlew"></label>
+      <p class="hint">Add the picture under Images first. The typed title is still used for headers and file names.</p>
       <label>Subtitle<input type="text" id="f_subtitle"></label>
       <label>Author name<input type="text" id="f_author"></label>
     </section>
@@ -185,6 +188,8 @@ body.dragging iframe{pointer-events:none}
       <label>Copyright page<textarea id="f_copyright"></textarea></label>
       <label>Dedication (leave blank to skip)<textarea id="f_dedication" style="min-height:50px"></textarea></label>
       <label class="row"><input type="checkbox" id="f_toc"> Include a table of contents</label>
+      <label>Map and other pages before Chapter 1 (leave blank to skip)<textarea id="f_frontpages" style="min-height:60px" placeholder="# Map of the Realm&#10;[[image:Map|full]]"></textarea></label>
+      <p class="hint">For a map, add it under Images, then write <code>[[image:Map|full]]</code> here. <code>full</code> fits it to the page. A line with only <code>---</code> starts another page (an epigraph, a cast list, a second map).</p>
     </section>
   </div>
 
@@ -196,6 +201,9 @@ body.dragging iframe{pointer-events:none}
         <option value="5.25x8">5.25 × 8 in</option>
         <option value="5.5x8.5">5.5 × 8.5 in</option>
         <option value="6x9">6 × 9 in</option>
+        <option value="8x10">8 × 10 in (picture books)</option>
+        <option value="8.5x8.5">8.5 × 8.5 in (square)</option>
+        <option value="8.5x11">8.5 × 11 in (coloring books)</option>
         <option value="custom">Custom…</option>
       </select>
       <div class="grid2" id="customTrim" hidden>
@@ -227,6 +235,7 @@ body.dragging iframe{pointer-events:none}
       <select id="s_numpos">
         <option value="center">Bottom, centered</option>
         <option value="outside">Bottom, outer corner</option>
+        <option value="none">No page numbers</option>
       </select>
       <p class="hint">Numbering starts at 1 on the first chapter. Chapter opening pages and blank pages hide their number.</p>
     </section>
@@ -256,6 +265,7 @@ body.dragging iframe{pointer-events:none}
         <option value="words">Chapter One + title</option>
         <option value="digits">Chapter 1 + title</option>
         <option value="number">1 + title</option>
+        <option value="hidden">No heading (picture and coloring books)</option>
       </select></label>
       <label>First paragraph<select id="s_first">
         <option value="both">Drop cap + small caps line</option>
@@ -284,6 +294,9 @@ body.dragging iframe{pointer-events:none}
       <p class="hint">Click a chapter on the Book tab to edit its text. Reorder or remove here.</p>
       <div class="list" id="chapterOrder"></div>
       <button id="btnAddChapter">Add an empty chapter</button>
+      <button id="btnAddPics">Add picture pages…</button>
+      <input type="file" id="filePics" accept="image/*" multiple hidden>
+      <p class="hint">For picture and coloring books: pick your images and each one becomes its own chapter, in file name order, sized to fill the page. Then pick <b>No page numbers</b> on the Page tab, and on the Type tab set the chapter label to <b>No heading</b>. Tick <b>Start every chapter on a right-hand page</b> there too if you want a blank back behind every picture.</p>
     </section>
   </div>
 
@@ -322,6 +335,7 @@ body.dragging iframe{pointer-events:none}
     <section>
       <h2>Images</h2>
       <p class="hint">Author photos, covers, ornaments. Stored on this computer. Use the name inside <code>[[image:Name]]</code>.</p>
+      <p class="hint"><b>Lots of big images</b> (a coloring book, maps, many covers)? Save to a folder, not just in the browser. Browser storage fills up fast. Switch with <b>Change where I save</b> on the Library tab.</p>
       <input type="file" id="fileImg" accept="image/*" multiple>
       <div class="imgs" id="imgList"></div>
     </section>
@@ -402,7 +416,7 @@ const FONTS = {
   "IM Fell English":"IM+Fell+English:ital@0;1",
   "Playfair Display":"Playfair+Display:ital,wght@0,400;0,600;1,400"
 };
-const TRIMS = {"5x8":[5,8],"5.25x8":[5.25,8],"5.5x8.5":[5.5,8.5],"6x9":[6,9]};
+const TRIMS = {"5x8":[5,8],"5.25x8":[5.25,8],"5.5x8.5":[5.5,8.5],"6x9":[6,9],"8x10":[8,10],"8.5x8.5":[8.5,8.5],"8.5x11":[8.5,11]};
 
 const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
@@ -455,14 +469,14 @@ function newBook(){
   return {
     title:"The Lighthouse Keeper", subtitle:"An example book", author:"Your Name",
     copyright:"Copyright © "+new Date().getFullYear()+" Your Name\n\nAll rights reserved. No part of this book may be reproduced without written permission from the author, except for brief quotations in reviews.\n\nThis is a work of fiction. Names, characters and places are products of the author's imagination.",
-    dedication:"", toc:true,
+    dedication:"", frontpages:"", toc:true,
     chapters: splitChapters(SAMPLE_TEXT, "Example"),
     endIds:["about"],
     s:{trim:"5.5x8.5", w:5.5, h:8.5, mt:0.75, mb:0.75, mi:0.875, mo:0.625,
        headers:true, hleft:"", hright:"", numpos:"center",
        font:"EB Garamond", size:11.5, lead:1.4, indent:0.3, justify:true, hyphen:true,
        hfont:"EB Garamond", hsize:22, sink:1.6, label:"none", first:"both", orn:"❦", right:true,
-       scene:"* * *", sceneimg:"", ornimg:"", ornh:0.3}
+       scene:"* * *", sceneimg:"", ornimg:"", ornh:0.3, titleimg:"", titlew:3.5}
   };
 }
 
@@ -570,6 +584,7 @@ function imageTag(name, width){
   const src = images[name];
   if(!src){ const w = String(width||"1.2in"), m = w.match(/^([0-9.]+) *in$/), ratio = /cover/i.test(name) ? 1.5 : 1.2;
     return `<span class="missing" style="width:${esc(w)};${m?`height:${(parseFloat(m[1])*ratio).toFixed(2)}in`:""}">Add an image named “${esc(name)}” on the Images tab</span>`; }
+  if(/^full$/i.test(width||"")) return `<img class="full" src="${src}" alt="${esc(name)}">`;
   return `<img src="${src}" alt="${esc(name)}" style="${width?`width:${esc(width)}`:""}">`;
 }
 const IMG_RE = /\[\[image:([^\]|]+)(?:\|([^\]|]+))?(?:\|([^\]]+))?\]\]/g;
@@ -611,6 +626,7 @@ function bookCSS(s){
   const hl = esc(s.hleft || book.author || "").replace(/\\/g,"");
   const hr = esc(s.hright || book.title || "").replace(/\\/g,"");
   const cssStr = t => '"' + t.replace(/&amp;/g,"&").replace(/&quot;/g,'\\"').replace(/&lt;/g,"<").replace(/&gt;/g,">") + '"';
+  const nonum = s.numpos==="none";
   const numL = s.numpos==="outside" ? "bottom-left" : "bottom-center";
   const numR = s.numpos==="outside" ? "bottom-right" : "bottom-center";
   const head = s.headers;
@@ -622,14 +638,15 @@ function bookCSS(s){
 @page :left { margin-left:${s.mo}in; margin-right:${s.mi}in; }
 @page :right { margin-left:${s.mi}in; margin-right:${s.mo}in; }
 @page front { @top-center{content:none} @bottom-center{content:none} @bottom-left{content:none} @bottom-right{content:none} }
-@page body:left { ${head?`@top-center{content:${cssStr(hl)}}`:""} @${numL}{content:counter(page)} }
-@page body:right { ${head?`@top-center{content:${cssStr(hr)}}`:""} @${numR}{content:counter(page)} }
+@page body:left { ${head?`@top-center{content:${cssStr(hl)}}`:""} ${nonum?"":`@${numL}{content:counter(page)}`} }
+@page body:right { ${head?`@top-center{content:${cssStr(hr)}}`:""} ${nonum?"":`@${numR}{content:counter(page)}`} }
 @page :blank { @top-center{content:none} @bottom-center{content:none} @bottom-left{content:none} @bottom-right{content:none} }
 html{ font-family:"${s.font}", Georgia, serif; font-size:${s.size}pt; line-height:${s.lead}; color:#111; }
 body{ margin:0; }
 .front{ page:front; break-after:page; }
 .titlepage{ text-align:center; padding-top:28%; }
 .titlepage h1{ font-family:"${s.hfont}",serif; font-weight:400; font-size:${Math.round(s.hsize*1.6)}pt; line-height:1.15; margin:0 0 .4em; }
+.titlepage h1.img{ line-height:0; margin-bottom:1.2em; }
 .titlepage .subtitle{ font-style:italic; font-size:1.15em; margin:0 0 3em; }
 .titlepage p, .dedication p{ text-align:center; text-indent:0; }
 .titlepage .author{ font-family:"${s.hfont}",serif; font-size:1.3em; letter-spacing:.08em; text-transform:uppercase; }
@@ -661,6 +678,9 @@ h3.sub{ font-family:"${s.hfont}",serif; font-weight:400; font-size:1.15em; text-
 .endmatter h2{ font-family:"${s.hfont}",serif; font-weight:400; text-align:center; font-size:${s.hsize}pt; margin:${(s.sink*0.6).toFixed(2)}in 0 1.2em; }
 .endmatter p{ text-indent:0; margin:0 0 .7em; text-align:left; }
 .imgrow{ display:flex; justify-content:center; flex-wrap:wrap; gap:.18in; margin:.6em 0 1em; break-inside:avoid; }
+.front.extra h3.sub{ text-align:center; margin:0 0 .8em; }
+.front.extra p{ text-align:center; text-indent:0; }
+img.full{ display:block; margin:0 auto; max-width:100%; max-height:${Math.max(1,((s.trim==="custom"?s.h:(TRIMS[s.trim]||[0,s.h])[1])-s.mt-s.mb-0.7)).toFixed(2)}in; width:auto; height:auto; object-fit:contain; }
 .imgrow figure{ margin:0; text-align:center; font-size:.78em; line-height:1.3; }
 .imgrow figcaption{ margin-top:.35em; }
 .bookrow{ display:flex; gap:.22in; align-items:flex-start; margin:0 0 .28in; break-inside:avoid; }
@@ -675,6 +695,9 @@ h3.sub{ font-family:"${s.hfont}",serif; font-weight:400; font-size:1.15em; text-
 .endmatter .fine{ font-size:.82em; font-style:italic; text-align:center; margin-top:1.4em; }
 .endmatter .solo{ text-align:center; margin:.6em 0 1em; }
 .imgrow img{ max-width:100%; max-height:3in; height:auto; }
+.chapter.nohead .imgrow{ margin:0; height:${Math.max(1,((s.trim==="custom"?s.h:(TRIMS[s.trim]||[0,s.h])[1])-s.mt-s.mb-0.1)).toFixed(2)}in; align-items:center; }
+.chapter.nohead img.full, .chapter.nohead .imgrow img.full{ max-height:${Math.max(1,((s.trim==="custom"?s.h:(TRIMS[s.trim]||[0,s.h])[1])-s.mt-s.mb-0.1)).toFixed(2)}in; }
+.imgrow img.full{ max-height:${Math.max(1,((s.trim==="custom"?s.h:(TRIMS[s.trim]||[0,s.h])[1])-s.mt-s.mb-0.7)).toFixed(2)}in; }
 img{ max-width:100%; }
 .missing{ display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; min-height:.6in; padding:.1in; border:1px dashed #b88; color:#a33; font-family:sans-serif; font-size:7.5pt; line-height:1.3; text-align:center; vertical-align:top; }
 `;
@@ -698,8 +721,8 @@ function buildDoc(){
   const chapters = book.chapters.map((c,i) => {
     const n = i+1;
     const label = s.label==="words" ? `Chapter ${words(n)}` : s.label==="digits" ? `Chapter ${n}` : s.label==="number" ? String(n) : "";
-    return `<section class="chapter${i===0?" first":""}" id="ch${n}">
-<div class="chapter-head">${label?`<span class="label">${label}</span>`:""}<h2>${inline(c.title)}</h2>${s.ornimg && images[s.ornimg] ? `<span class="orn img"><img src="${images[s.ornimg]}" alt="" style="height:${Math.max(0.1, parseFloat(s.ornh)||0.3)}in;width:auto"></span>` : s.orn?`<span class="orn">${esc(s.orn)}</span>`:""}</div>
+    return `<section class="chapter${i===0?" first":""}${s.label==="hidden"?" nohead":""}" id="ch${n}">
+${s.label==="hidden" ? "" : `<div class="chapter-head">${label?`<span class="label">${label}</span>`:""}<h2>${inline(c.title)}</h2>${s.ornimg && images[s.ornimg] ? `<span class="orn img"><img src="${images[s.ornimg]}" alt="" style="height:${Math.max(0.1, parseFloat(s.ornh)||0.3)}in;width:auto"></span>` : s.orn?`<span class="orn">${esc(s.orn)}</span>`:""}</div>`}
 ${bodyHTML(c.text, s, true)}
 </section>`;
   }).join("\n");
@@ -716,7 +739,7 @@ ${bodyHTML(c.text, s, true)}
   function report(msg){ try{ parent.postMessage(Object.assign({mossPress:true}, msg), "*"); }catch(e){} }
   if(!window.Paged){ report({error:"Couldn't load the page layout engine. Check your internet connection and refresh."}); return; }
   class Openers extends Paged.Handler{
-    afterPageLayout(page){ if(page.querySelector(".chapter-head") || page.querySelector(".endmatter")) page.classList.add("opener"); }
+    afterPageLayout(page){ if(page.querySelector(".chapter-head") || page.querySelector(".endmatter") || page.querySelector("img.full")) page.classList.add("opener"); }
   }
   Paged.registerHandlers(Openers);
   function finalize(){
@@ -753,10 +776,11 @@ ${bodyHTML(c.text, s, true)}
 })();
 <\/script>
 </head><body>
-<section class="front titlepage"><h1>${inline(book.title||"")}</h1>${book.subtitle?`<p class="subtitle">${inline(book.subtitle)}</p>`:""}<p class="author">${inline(book.author||"")}</p></section>
+<section class="front titlepage">${s.titleimg && images[s.titleimg] ? `<h1 class="img"><img src="${images[s.titleimg]}" alt="${esc(book.title||"")}" style="width:${Math.max(0.5, parseFloat(s.titlew)||3.5)}in;max-width:100%;height:auto"></h1>` : `<h1>${inline(book.title||"")}</h1>`}${book.subtitle?`<p class="subtitle">${inline(book.subtitle)}</p>`:""}<p class="author">${inline(book.author||"")}</p></section>
 ${book.copyright.trim()?`<section class="front copyright">${paraBlock(book.copyright)}</section>`:""}
 ${book.dedication.trim()?`<section class="front dedication">${paraBlock(book.dedication)}</section>`:""}
 ${toc}
+${String(book.frontpages||"").split(/\n[ \t]*-{3,}[ \t]*(?=\n|$)/).filter(p=>p.trim()).map(p=>`<section class="front extra">${bodyHTML(p, s, false)}</section>`).join("\n")}
 ${chapters}
 ${ends}
 </body></html>`;
@@ -776,8 +800,8 @@ for(const sel of ["s_font","s_hfont"]){
   $(sel).innerHTML = Object.keys(FONTS).map(f=>`<option>${f}</option>`).join("");
 }
 
-const BOOK_FIELDS = {f_title:"title", f_subtitle:"subtitle", f_author:"author", f_copyright:"copyright", f_dedication:"dedication"};
-const S_FIELDS = ["trim","w","h","mt","mb","mi","mo","headers","hleft","hright","numpos","font","size","lead","indent","justify","hyphen","hfont","hsize","sink","label","first","orn","ornimg","ornh","right","scene","sceneimg"];
+const BOOK_FIELDS = {f_title:"title", f_subtitle:"subtitle", f_author:"author", f_copyright:"copyright", f_dedication:"dedication", f_frontpages:"frontpages"};
+const S_FIELDS = ["trim","w","h","mt","mb","mi","mo","headers","hleft","hright","numpos","font","size","lead","indent","justify","hyphen","hfont","hsize","sink","label","first","orn","ornimg","ornh","titleimg","titlew","right","scene","sceneimg"];
 
 function fillForm(){
   for(const [id,k] of Object.entries(BOOK_FIELDS)) $(id).value = book[k] || "";
@@ -787,6 +811,7 @@ function fillForm(){
     const el = $("s_"+k); if(!el) continue;
     if(el.type==="checkbox") el.checked = !!book.s[k]; else el.value = book.s[k] ?? "";
   }
+  if(!book.s.titlew) $("s_titlew").value = 3.5;
   if(book.s.trim!=="custom"){ $("s_w").value = TRIMS[book.s.trim][0]; $("s_h").value = TRIMS[book.s.trim][1]; }
   $("customTrim").hidden = book.s.trim!=="custom";
   renderChapters(); renderEnd(); renderImages();
@@ -883,6 +908,18 @@ function openChapter(){
 }
 $("c_title").addEventListener("input", e => { const c = book.chapters[selChapter]; if(c){ c.title = e.target.value; renderChapters(); saveLocal(); scheduleRefresh(); }});
 $("c_text").addEventListener("input", e => { const c = book.chapters[selChapter]; if(c){ c.text = e.target.value; saveLocal(); scheduleRefresh(); }});
+$("btnAddPics").addEventListener("click", () => $("filePics").click());
+$("filePics").addEventListener("change", async e => {
+  const files = [...e.target.files].sort((a,b)=>a.name.localeCompare(b.name, undefined, {numeric:true}));
+  for(const f of files){
+    const base = f.name.replace(/\.[^.]+$/,""); let name = base, k = 2;
+    while(images[name]) name = base + " " + k++;
+    images[name] = await loadImage(f);
+    book.chapters.push({title: base.replace(/^[0-9]+[ ._-]*/,"") || base, text: `[[image:${name}|full]]`});
+  }
+  e.target.value = ""; saveImages(); renderImages(); refreshSceneImgOptions(); renderChapters(); saveLocal(); scheduleRefresh();
+  setStatus(files.length + " picture page" + (files.length===1?"":"s") + " added.");
+});
 $("btnAddChapter").addEventListener("click", () => { book.chapters.push({title:"New chapter", text:""}); selChapter = book.chapters.length-1; renderChapters(); openChapter(); saveLocal(); });
 
 $("fileText").addEventListener("change", async e => {
@@ -954,6 +991,9 @@ function refreshSceneImgOptions(){
   $("s_sceneimg").value = book.s.sceneimg || "";
   $("s_ornimg").innerHTML = `<option value="">Use the symbol above</option>` + Object.keys(images).map(n=>`<option>${esc(n)}</option>`).join("");
   $("s_ornimg").value = book.s.ornimg || "";
+  $("s_titleimg").innerHTML = `<option value="">Use the typed title</option>` + Object.keys(images).map(n=>`<option>${esc(n)}</option>`).join("");
+  $("s_titleimg").value = book.s.titleimg || "";
+  if(!book.s.titlew) $("s_titlew").value = 3.5;
 }
 function renderImages(){
   $("imgList").replaceChildren(...Object.entries(images).map(([name,src]) => {
@@ -962,7 +1002,7 @@ function renderImages(){
     f.querySelector("input").addEventListener("change", ev => {
       const nn = ev.target.value.trim(); if(!nn || nn===name || images[nn]) { ev.target.value = name; return; }
       images[nn] = images[name]; delete images[name];
-      for(const id in library.books){ const bs = library.books[id].s || {}; if(bs.sceneimg === name) bs.sceneimg = nn; if(bs.ornimg === name) bs.ornimg = nn; }
+      for(const id in library.books){ const bs = library.books[id].s || {}; if(bs.sceneimg === name) bs.sceneimg = nn; if(bs.ornimg === name) bs.ornimg = nn; if(bs.titleimg === name) bs.titleimg = nn; }
       saveImages(); renderImages(); refreshSceneImgOptions(); markBook();
     });
     f.querySelector("button").addEventListener("click", () => { delete images[name]; saveImages(); renderImages(); refreshSceneImgOptions(); scheduleRefresh(); });
@@ -976,7 +1016,7 @@ function loadImage(file){
     r.onload = () => {
       const img = new Image();
       img.onload = () => {
-        const max = 1800, k = Math.min(1, max / Math.max(img.width, img.height));
+        const max = 3300, k = Math.min(1, max / Math.max(img.width, img.height));
         const c = document.createElement("canvas"); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
         c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
         res(file.type==="image/png" ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", .9));
@@ -1061,7 +1101,7 @@ function chapterStems(chs){
 const chapterFile=c=>"# "+(oneLine(c.title)||"Untitled chapter")+"\n\n"+String(c.text||"").replace(/\s+$/,"")+"\n";
 function endName(id){const e=endLib.find(x=>x.id===id);return e?e.name:null}
 function pressJson(b){
-  return JSON.stringify({app:"Moss Press",format:1,subtitle:b.subtitle||"",copyright:b.copyright||"",dedication:b.dedication||"",toc:!!b.toc,
+  return JSON.stringify({app:"Moss Press",format:1,subtitle:b.subtitle||"",copyright:b.copyright||"",dedication:b.dedication||"",frontpages:b.frontpages||"",toc:!!b.toc,
     endPages:(b.endIds||[]).map(endName).filter(Boolean),settings:b.s},null,2)+"\n";
 }
 function bookJson(b){
@@ -1135,7 +1175,7 @@ async function folderLoad(){
     try{pj=JSON.parse(await rd(e.h,"press.json",id+"/press.json")||"null")}catch(x){}
     b._bookJson=bj||null;
     b.title=String((bj&&bj.title)||id);b.author=String((bj&&bj.author)||"");
-    if(pj){b.subtitle=pj.subtitle||"";if(typeof pj.copyright==="string")b.copyright=pj.copyright;b.dedication=pj.dedication||"";b.toc=pj.toc!==false;
+    if(pj){b.subtitle=pj.subtitle||"";if(typeof pj.copyright==="string")b.copyright=pj.copyright;b.dedication=pj.dedication||"";b.frontpages=pj.frontpages||"";b.toc=pj.toc!==false;
       b.s=Object.assign(newBook().s,pj.settings||{});b._endNames=Array.isArray(pj.endPages)?pj.endPages:[]}
     else{b.copyright=defaultCopyright(b.author);b._endNames=[]}
     const files=(await entries(e.h,"chapters")).filter(k=>k.kind==="file"&&isText(k.name)).sort((a,c)=>a.name.localeCompare(c.name,undefined,{numeric:true}));
@@ -1298,8 +1338,8 @@ $("f_title").addEventListener("input",()=>{const o=[...$("bookSel").options].fin
 $("btnSave").addEventListener("click",()=>{
   readForm();
   const {_bookJson,_removed,...plain}=book;
-  const usedImgs={};const all=[book.copyright,book.dedication,...book.chapters.map(c=>c.text),...book.endIds.map(id=>(endLib.find(e=>e.id===id)||{}).text||"")].join("\n");
-  for(const n in images)if(all.includes("image:"+n)||book.s.sceneimg===n)usedImgs[n]=images[n];
+  const usedImgs={};const all=[book.copyright,book.dedication,book.frontpages||"",...book.chapters.map(c=>c.text),...book.endIds.map(id=>(endLib.find(e=>e.id===id)||{}).text||"")].join("\n");
+  for(const n in images)if(all.includes("image:"+n)||book.s.sceneimg===n||book.s.ornimg===n||book.s.titleimg===n)usedImgs[n]=images[n];
   const data=JSON.stringify({mossPress:1,book:plain,endLib:endLib.filter(e=>book.endIds.includes(e.id)),images:usedImgs},null,1);
   downloadBlob(fileSafe(book.title||"book")+".mosspress.json",new Blob([data],{type:"application/json"}));
   setStatus("Project file saved to your Downloads folder.");

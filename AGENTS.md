@@ -63,7 +63,7 @@ The keeper opened the door before she knocked.
 - `*italic*` and `**bold**` work.
 - A line of only `***`, `* * *` or `#` is a scene break.
 - `## Heading` inside a chapter makes a small centered subheading.
-- `[[image:Name]]` places an image from `_press/images/` (by file name without the extension). `[[image:Name|2in]]` sets its width.
+- `[[image:Name]]` places an image from `_press/images/` (by file name without the extension). `[[image:Name|2in]]` sets its width. `[[image:Name|full]]` fits it to the page (maps, picture pages).
 - Never delete a chapter file. Move it into the book's `trash/chapters/` folder.
 
 ## Book settings: `press.json`
@@ -72,6 +72,7 @@ The keeper opened the door before she knocked.
 {
   "app": "Moss Press", "format": 1,
   "subtitle": "", "copyright": "Copyright © 2026 Your Name\n\nAll rights reserved...", "dedication": "",
+  "frontpages": "# Map of the Realm\n[[image:Map|full]]",
   "toc": true,
   "endPages": ["About the Author", "Also by the author"],
   "settings": { "trim": "5.5x8.5", "font": "EB Garamond", "size": 11.5, ... }
@@ -79,6 +80,7 @@ The keeper opened the door before she knocked.
 ```
 
 - `copyright` and `dedication` are plain text. A blank line starts a new paragraph. An empty dedication skips the page.
+- `frontpages`: pages between the table of contents and Chapter 1 (a map, an epigraph, a cast list), written like chapter text. A line of only `---` starts a new page. Empty skips them.
 - `toc`: include a table of contents.
 - `endPages`: which end matter pages this book includes, in order, by their names in `_press/end-matter/`.
 - The title and author live in `book.json`, not here.
@@ -87,16 +89,17 @@ The keeper opened the door before she knocked.
 
 | Setting | Meaning | Values |
 |---|---|---|
-| `trim` | Page size | `"5x8"`, `"5.25x8"`, `"5.5x8.5"`, `"6x9"`, or `"custom"` with `w` and `h` in inches |
+| `trim` | Page size | `"5x8"`, `"5.25x8"`, `"5.5x8.5"`, `"6x9"`, `"8x10"`, `"8.5x8.5"`, `"8.5x11"`, or `"custom"` with `w` and `h` in inches |
 | `mt`, `mb`, `mi`, `mo` | Margins in inches: top, bottom, inside (binding edge), outside | numbers |
 | `headers` | Running headers at the top of pages | `true` / `false` |
 | `hleft`, `hright` | Header text on left / right pages (blank means author / title) | text |
-| `numpos` | Page numbers | `"center"` or `"outside"` |
+| `numpos` | Page numbers | `"center"`, `"outside"`, or `"none"` |
 | `font`, `hfont` | Body font, heading font | EB Garamond, Crimson Pro, Libre Baskerville, Lora, Alegreya, Spectral, Cormorant Garamond, Cinzel, IM Fell English, Playfair Display |
 | `size`, `lead`, `indent` | Body size (pt), line spacing, paragraph indent (in) | numbers, e.g. 11.5, 1.4, 0.3 |
 | `justify`, `hyphen` | Justified text, hyphenation | `true` / `false` |
 | `hsize`, `sink` | Chapter title size (pt), space above it (in) | numbers |
-| `label` | Chapter label | `"none"`, `"words"` (Chapter One), `"digits"` (Chapter 1), `"number"` (1) |
+| `label` | Chapter label | `"none"` (title only), `"words"` (Chapter One), `"digits"` (Chapter 1), `"number"` (1), `"hidden"` (no heading at all, for picture and coloring books) |
+| `titleimg`, `titlew` | Use an image from `_press/images/` on the title page instead of the typed title (by name), and its width in inches. The typed title is still used for headers and file names | name, number like 3.5 |
 | `first` | First paragraph of a chapter | `"both"` (drop cap + small caps line), `"dropcap"`, `"smallcaps"`, `"plain"` |
 | `orn` | Ornament under the chapter title | `""`, `"❦"`, `"✦"`, `"~"`, or any short symbol |
 | `ornimg`, `ornh` | Use an image from `_press/images/` as the ornament instead (by name), and its height in inches | name, number like 0.3 |
@@ -156,6 +159,7 @@ The writer may ask you to clean up grammar and spelling across one book or many.
 - **Same look for a whole series:** copy the `settings` block from one book's `press.json` into the others. Confirm with the writer first, and leave `trim` alone unless they ask.
 - **Update the "Also by" page:** edit the one file in `_press/end-matter/`. Every book that includes it gets the change.
 - **Add a new book:** make a folder with `book.json` (`{"title": "...", "author": "..."}`) and a `chapters/` folder with the chapter files. Moss Press creates `press.json` with default settings the first time it saves the book.
+- **Picture or coloring book:** one chapter per picture, each chapter's text just `[[image:Name|full]]`. Set `label` to `"hidden"`, `numpos` to `"none"`, and `right` to `true` for a blank back behind every picture.
 - **Bring in a finished manuscript:** split it into one chapter file per chapter, numbered in order, each starting with `# Title`.
 
 ## Keep to the folder

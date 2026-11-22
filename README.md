@@ -34,13 +34,14 @@ Moss Press can't run inside a Claude artifact, because artifacts aren't allowed 
 
 ## What it does
 
-- **Page:** trim sizes 5 × 8, 5.25 × 8, 5.5 × 8.5, 6 × 9 or custom; mirrored margins; running headers; page numbers centered or on the outer corner. It warns you if your inside margin is too small for KDP at your page count.
+- **Page:** trim sizes 5 × 8, 5.25 × 8, 5.5 × 8.5, 6 × 9, 8 × 10, 8.5 × 8.5, 8.5 × 11 or custom; mirrored margins; running headers; page numbers centered, on the outer corner, or off. It warns you if your inside margin is too small for KDP at your page count.
 - **Type:** ten book fonts, size, line spacing, indents, justification and hyphenation.
-- **Chapter openings:** "Chapter One", "Chapter 1" or just the title; drop cap and small caps; an ornament under the title, a symbol or your own drawn image; start every chapter on a right-hand page.
+- **Chapter openings:** "Chapter One", "Chapter 1", just the title, or no heading at all; drop cap and small caps; an ornament under the title, a symbol or your own drawn image; start every chapter on a right-hand page.
 - **Scene breaks:** a line of `***` becomes your symbol, or your own drawn ornament image.
-- **Front matter:** title page, copyright page, dedication and table of contents, all unnumbered, each starting on the right-hand page like a printed book.
+- **Front matter:** title page (typed, or your own title art), copyright page, dedication and table of contents, all unnumbered, each starting on the right-hand page like a printed book. Add a map, an epigraph or a cast list before Chapter 1.
 - **End matter library:** About the Author, Also by, newsletter pages and so on, written once and reused in any book. Start from a template: covers with blurbs, a row of covers with captions, a list by series, or a thank-you page with your website. Each page can be left-aligned or centered.
-- **Images:** author photos, covers and ornaments.
+- **Images:** author photos, covers, ornaments, title art and maps. `[[image:Map|full]]` fits a picture to the page.
+- **Picture and coloring books:** add a stack of images at once and each becomes its own full page, centered, with no heading, header or page number, and a blank back if you want one. If you're using lots of big images, save to a folder rather than the browser.
 - **Import:** one file for the whole book or one per chapter, plain text or Markdown. Choose how chapters split: at `# Heading` lines and lines like "Chapter 3" or "Prologue", at short title lines, at page breaks, or at a marker line you pick. Anything that lands wrong is quick to fix with **Split chapter at cursor** and **Join with next chapter**. Coming from Scrivener? Compile to Plain Text or MultiMarkdown with chapter titles on (MultiMarkdown keeps your italics).
 - **Library:** all your books in one place, with a book switcher.
 - **Backups:** Download everything gives you every book, your end matter and your images as a zip of plain files. A project file carries one book anywhere.
