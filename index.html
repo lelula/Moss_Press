@@ -1,0 +1,1250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moss Press</title>
+<!--
+  Moss Press: lay out a novel for print and save it as a PDF.
+  Made by LelulaGames (https://lelula.itch.io). MIT license, see LICENSE.
+  Shared as-is. If it breaks, have your AI fix it.
+  Your text never leaves your computer. The page loads fonts from Google Fonts and its page-layout engine (Paged.js) from unpkg.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Layout: settings column on the left, live book spreads on the right, like a print shop's proofing table */
+:root{
+  --paper:#f3f1ea; --panel:#fbfaf6; --ink:#24302a; --muted:#66706a; --line:#d9d6cb;
+  --moss:#4f6b4a; --moss-soft:#e3eadf; --warn:#9a5b1e; --warn-soft:#f6e8d6;
+  --display:"Fraunces", Georgia, serif; --ui:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){ :root{
+  --paper:#1b201d; --panel:#232a26; --ink:#e7ebe4; --muted:#a3ada6; --line:#3a433e;
+  --moss:#9cbd93; --moss-soft:#2e3a2f; --warn:#e2a866; --warn-soft:#3b2f22; color-scheme: dark; } }
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 var(--ui);display:flex;flex-direction:column}
+header.bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+header.bar h1{font:600 22px/1 var(--display);margin:0 12px 0 0;letter-spacing:.01em}
+header.bar .spacer{flex:1}
+.status{color:var(--muted);font-size:13px}
+button,.btn{font:600 14px var(--ui);border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;border-radius:6px;cursor:pointer}
+button:hover,.btn:hover{border-color:var(--moss)}
+button.primary{background:var(--moss);border-color:var(--moss);color:var(--panel)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--moss);outline-offset:1px}
+main{flex:1;display:flex;min-height:0}
+aside{width:380px;min-width:300px;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+nav.tabs{display:flex;flex-wrap:wrap;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--line)}
+nav.tabs button{border:none;border-bottom:3px solid transparent;border-radius:0;background:none;padding:8px 9px;color:var(--muted)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--moss)}
+.panel{overflow:auto;padding:14px 16px 40px;flex:1}
+.panel section{display:grid;gap:10px;margin-bottom:22px}
+.panel h2{font:600 17px var(--display);margin:4px 0 0}
+.panel p.hint{margin:0;color:var(--muted);font-size:13px}
+label{display:grid;gap:3px;font-size:13px;color:var(--muted)}
+label.row{grid-template-columns:auto 1fr;align-items:center;gap:8px;color:var(--ink);font-size:14px}
+input[type=text],input[type=number],select,textarea{font:14px var(--ui);color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:6px 8px;width:100%}
+textarea{min-height:90px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+textarea.tall{min-height:260px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.list{display:grid;gap:6px}
+.item{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--paper)}
+.item.sel{border-color:var(--moss);background:var(--moss-soft)}
+.item .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.item button{padding:3px 7px;font-size:12px}
+.imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.imgs figure{margin:0;border:1px solid var(--line);border-radius:6px;padding:6px;background:var(--paper);display:grid;gap:4px;font-size:12px}
+.imgs img{width:100%;height:80px;object-fit:contain}
+.note{border-left:3px solid var(--warn);background:var(--warn-soft);padding:8px 10px;border-radius:4px;font-size:13px}
+.note.ok{border-left-color:var(--moss);background:var(--moss-soft)}
+.proof{flex:1;min-width:0;display:flex;flex-direction:column}
+.proof iframe{flex:1;border:0;width:100%;background:#8a8a84}
+code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--moss-soft);padding:1px 4px;border-radius:3px}
+[hidden]{display:none!important}
+.nostore aside,.nostore #bookSel,.nostore #btnNewBook,.nostore #btnRefresh,.nostore #btnPrint{display:none!important}
+#bookSel{width:auto;max-width:260px;font:600 14px var(--ui);padding:6px 8px}
+.proof{position:relative}
+.overlay{position:absolute;inset:0;z-index:5;overflow:auto;background:var(--paper);display:flex;justify-content:center;align-items:flex-start;padding:10vh 24px 40px}
+.overlay .box{max-width:560px;display:grid;gap:14px}
+.overlay h2{font:600 28px/1.2 var(--display);margin:0}
+.overlay p{margin:0;color:var(--muted);line-height:1.55}
+.choice{display:grid;gap:4px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;cursor:pointer;font-weight:400}
+.choice:hover:not(:disabled){border-color:var(--moss)}
+.choice:disabled{opacity:.55;cursor:default}
+.choice b{font:600 17px var(--display);color:var(--ink)}
+.choice span{color:var(--muted);font-size:14px;line-height:1.5}
+.choice em{color:var(--warn);font-size:13px;font-style:normal}
+.choice .tag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--moss);font-weight:700}
+.warnline{color:var(--warn)!important;font-size:14px}
+.where{font-size:13.5px;color:var(--muted);line-height:1.5}
+.where b{color:var(--ink)}
+.btnrow{display:flex;flex-wrap:wrap;gap:6px}
+.credit{font-size:12.5px;color:var(--muted);line-height:1.5}
+.credit a{color:var(--moss)}
+@media (max-width:820px){ main{flex-direction:column} aside{width:auto;max-height:55vh;border-right:0;border-bottom:1px solid var(--line)} }
+</style>
+</head>
+<body class="nostore">
+<header class="bar">
+  <h1>Moss Press</h1>
+  <select id="bookSel" aria-label="Switch book"></select>
+  <button id="btnNewBook" title="Start a new book">+ Book</button>
+  <span class="spacer"></span>
+  <span class="status" id="status">Ready</span>
+  <button id="btnRefresh">Refresh preview</button>
+  <button id="btnPrint" class="primary">Export PDF</button>
+</header>
+<main>
+<aside>
+  <nav class="tabs" role="tablist">
+    <button data-tab="library" aria-selected="false">Library</button>
+    <button data-tab="book" aria-selected="true">Book</button>
+    <button data-tab="layout">Page</button>
+    <button data-tab="type">Type</button>
+    <button data-tab="chapters">Chapters</button>
+    <button data-tab="end">End matter</button>
+    <button data-tab="images">Images</button>
+    <button data-tab="help">Help</button>
+  </nav>
+
+  <div class="panel" data-panel="library" hidden>
+    <section>
+      <h2>Where your books live</h2>
+      <div class="where" id="whereLine"></div>
+      <div class="btnrow">
+        <button id="btnReload" hidden title="Pick up changes your AI agent or the Writing Desk made to the files">Reload from folder</button>
+        <button id="btnChange">Change where I save</button>
+      </div>
+    </section>
+    <section>
+      <h2>Backups and moving books</h2>
+      <p class="hint">Download everything saves every book, plus your end matter and images, as a zip of plain files. Unzip it into a folder and open that folder here, and you're back.</p>
+      <div class="btnrow"><button id="btnZip">Download everything</button></div>
+      <p class="hint">A project file holds one book with its end matter and images, handy for moving a single book or sharing it.</p>
+      <div class="btnrow"><button id="btnOpen">Open project file…</button><button id="btnSave">Save project file</button></div>
+      <input type="file" id="fileProject" accept=".json,.mosspress" hidden>
+    </section>
+    <section>
+      <h2>Works with the Moss Writing Desk</h2>
+      <p class="hint">Point Moss Press at the same folder as your Moss Writing Desk. Your books show up here with their chapters, ready to lay out. Write in the Desk, format here.</p>
+    </section>
+    <section>
+      <p class="credit">Moss Press · made by <a href="https://lelula.itch.io" target="_blank" rel="noopener">LelulaGames</a> · <a href="https://ko-fi.com/lelulagames" target="_blank" rel="noopener">♥ support</a></p>
+    </section>
+  </div>
+
+  <div class="panel" data-panel="book">
+    <section>
+      <h2>Title page</h2>
+      <label>Title<input type="text" id="f_title"></label>
+      <label>Subtitle<input type="text" id="f_subtitle"></label>
+      <label>Author name<input type="text" id="f_author"></label>
+    </section>
+    <section>
+      <h2>Manuscript</h2>
+      <p class="hint">Drop in one file for the whole book, or one file per chapter. Plain text (.txt) or Markdown (.md). Markdown keeps your italics.</p>
+      <input type="file" id="fileText" accept=".txt,.md,.markdown,.text" multiple>
+      <label class="row"><input type="checkbox" id="replaceOnImport" checked> Replace current chapters on import</label>
+      <div class="list" id="chapterList"></div>
+      <div id="chapterEditor" hidden>
+        <label>Chapter title<input type="text" id="c_title"></label>
+        <label>Text<textarea class="tall" id="c_text"></textarea></label>
+      </div>
+    </section>
+    <section>
+      <h2>Front matter</h2>
+      <p class="hint">Front matter pages carry no page numbers.</p>
+      <label>Copyright page<textarea id="f_copyright"></textarea></label>
+      <label>Dedication (leave blank to skip)<textarea id="f_dedication" style="min-height:50px"></textarea></label>
+      <label class="row"><input type="checkbox" id="f_toc"> Include a table of contents</label>
+    </section>
+  </div>
+
+  <div class="panel" data-panel="layout" hidden>
+    <section>
+      <h2>Trim size</h2>
+      <select id="s_trim">
+        <option value="5x8">5 × 8 in</option>
+        <option value="5.25x8">5.25 × 8 in</option>
+        <option value="5.5x8.5">5.5 × 8.5 in</option>
+        <option value="6x9">6 × 9 in</option>
+        <option value="custom">Custom…</option>
+      </select>
+      <div class="grid2" id="customTrim" hidden>
+        <label>Width (in)<input type="number" step="0.01" id="s_w"></label>
+        <label>Height (in)<input type="number" step="0.01" id="s_h"></label>
+      </div>
+    </section>
+    <section>
+      <h2>Margins (inches)</h2>
+      <p class="hint">Inside is the binding edge. Left pages and right pages mirror automatically.</p>
+      <div class="grid4">
+        <label>Top<input type="number" step="0.05" id="s_mt"></label>
+        <label>Bottom<input type="number" step="0.05" id="s_mb"></label>
+        <label>Inside<input type="number" step="0.05" id="s_mi"></label>
+        <label>Outside<input type="number" step="0.05" id="s_mo"></label>
+      </div>
+      <div class="note" id="gutterNote" hidden></div>
+    </section>
+    <section>
+      <h2>Running headers</h2>
+      <label class="row"><input type="checkbox" id="s_headers"> Show headers</label>
+      <div class="grid2">
+        <label>Left pages<input type="text" id="s_hleft" placeholder="Author name"></label>
+        <label>Right pages<input type="text" id="s_hright" placeholder="Book title"></label>
+      </div>
+    </section>
+    <section>
+      <h2>Page numbers</h2>
+      <select id="s_numpos">
+        <option value="center">Bottom, centered</option>
+        <option value="outside">Bottom, outer corner</option>
+      </select>
+      <p class="hint">Numbering starts at 1 on the first chapter. Chapter opening pages and blank pages hide their number.</p>
+    </section>
+  </div>
+
+  <div class="panel" data-panel="type" hidden>
+    <section>
+      <h2>Body text</h2>
+      <label>Font<select id="s_font"></select></label>
+      <div class="grid2">
+        <label>Size (pt)<input type="number" step="0.5" id="s_size"></label>
+        <label>Line spacing<input type="number" step="0.05" id="s_lead"></label>
+        <label>Paragraph indent (in)<input type="number" step="0.05" id="s_indent"></label>
+      </div>
+      <label class="row"><input type="checkbox" id="s_justify"> Justify text</label>
+      <label class="row"><input type="checkbox" id="s_hyphen"> Hyphenate long words</label>
+    </section>
+    <section>
+      <h2>Chapter openings</h2>
+      <label>Heading font<select id="s_hfont"></select></label>
+      <div class="grid2">
+        <label>Heading size (pt)<input type="number" step="1" id="s_hsize"></label>
+        <label>Space above (in)<input type="number" step="0.1" id="s_sink"></label>
+      </div>
+      <label>Chapter label<select id="s_label">
+        <option value="none">Title only</option>
+        <option value="words">Chapter One + title</option>
+        <option value="digits">Chapter 1 + title</option>
+        <option value="number">1 + title</option>
+      </select></label>
+      <label>First paragraph<select id="s_first">
+        <option value="both">Drop cap + small caps line</option>
+        <option value="dropcap">Drop cap</option>
+        <option value="smallcaps">Small caps first line</option>
+        <option value="plain">Plain, no indent</option>
+      </select></label>
+      <label>Ornament under the title<select id="s_orn">
+        <option value="">None</option><option value="❦">❦</option><option value="✦">✦</option><option value="~">~</option><option value="—">—</option>
+      </select></label>
+      <label class="row"><input type="checkbox" id="s_right"> Start every chapter on a right-hand page</label>
+    </section>
+    <section>
+      <h2>Scene breaks</h2>
+      <p class="hint">A line containing only <code>***</code>, <code>* * *</code> or <code>#</code> becomes a scene break.</p>
+      <label>Symbol<input type="text" id="s_scene"></label>
+      <label>Or use an image from Images<select id="s_sceneimg"></select></label>
+    </section>
+  </div>
+
+  <div class="panel" data-panel="chapters" hidden>
+    <section>
+      <h2>Chapter order</h2>
+      <p class="hint">Click a chapter on the Book tab to edit its text. Reorder or remove here.</p>
+      <div class="list" id="chapterOrder"></div>
+      <button id="btnAddChapter">Add an empty chapter</button>
+    </section>
+  </div>
+
+  <div class="panel" data-panel="end" hidden>
+    <section>
+      <h2>End matter library</h2>
+      <p class="hint">Saved on this computer and reusable in any book. Tick the ones this book should include, in order.</p>
+      <div class="list" id="endList"></div>
+      <button id="btnNewEnd">New end matter page</button>
+    </section>
+    <section id="endEditor" hidden>
+      <h2>Edit page</h2>
+      <label>Name<input type="text" id="e_name"></label>
+      <label>Content<textarea class="tall" id="e_text"></textarea></label>
+      <p class="hint"><code># Heading</code> for a title. <code>[[image:Author photo|2in]]</code> places an image; several on one line sit side by side, good for covers.</p>
+      <button id="btnDelEnd">Delete this page</button>
+    </section>
+  </div>
+
+  <div class="panel" data-panel="images" hidden>
+    <section>
+      <h2>Images</h2>
+      <p class="hint">Author photos, covers, ornaments. Stored on this computer. Use the name inside <code>[[image:Name]]</code>.</p>
+      <input type="file" id="fileImg" accept="image/*" multiple>
+      <div class="imgs" id="imgList"></div>
+    </section>
+  </div>
+
+  <div class="panel" data-panel="help" hidden>
+    <section>
+      <h2>From Scrivener</h2>
+      <p class="hint">Compile → format "Plain Text" or "MultiMarkdown", with chapter titles turned on. MultiMarkdown keeps italics as <code>*italic*</code>. Moss Press splits chapters at lines starting with <code>#</code> or at lines like "Chapter 3" or "Prologue".</p>
+      <h2>Exporting the PDF</h2>
+      <p class="hint">Export PDF opens the print dialog. Choose <b>Save as PDF</b>, set Margins to <b>None</b>, and turn off <b>Headers and footers</b>. The page size comes from your trim size automatically.</p>
+      <h2>Saving</h2>
+      <p class="hint">In folder mode every change saves to your folder as you go. In browser mode it saves inside this browser. Either way, Download everything on the Library tab gives you a copy of every book.</p>
+      <h2>Fonts</h2>
+      <p class="hint">Fonts load from Google Fonts, so stay online while previewing and exporting. They're embedded in the PDF, which is what KDP wants.</p>
+    </section>
+  </div>
+</aside>
+
+<div class="proof"><iframe id="proof" title="Book proof"></iframe>
+  <div class="overlay" id="setup" hidden><div class="box">
+    <h2>Where should your books live?</h2>
+    <p>Pick one to start. You can change it later from the Library tab.</p>
+    <button class="choice" id="pickFolder">
+      <span class="tag">Best with an AI agent or the Writing Desk</span>
+      <b>A folder on this computer</b>
+      <span>Every book is a folder of plain text files you own. Your AI agent can read and update them, and if you use the Moss Writing Desk, choose its folder and your books are already here.</span>
+      <em id="folderNo" hidden>This needs Chrome or Edge on a computer. Other browsers can't open folders.</em>
+    </button>
+    <button class="choice" id="pickBrowser">
+      <b>Just this browser</b>
+      <span>For trying it out. Your books stay inside this one browser. Save a project file or Download everything to keep a copy.</span>
+    </button>
+    <p style="font-size:13.5px">Your text never leaves your computer. The page only fetches fonts from Google Fonts and its page-layout engine, so stay online while you preview and export.</p>
+    <p class="warnline" id="setupWarn" hidden></p>
+    <p id="setupBack" hidden><button id="setupCancel">Back to my book</button></p>
+  </div></div>
+  <div class="overlay" id="reconnect" hidden><div class="box">
+    <h2>Welcome back</h2>
+    <p>Your browser asks again before a page can open a folder. One click and your library is back.</p>
+    <p><button class="primary" id="reconnectBtn">Open my books folder</button></p>
+    <p style="font-size:13.5px" id="reconnectName"></p>
+    <p><button id="reconnectOther">Choose a different folder</button> <button id="reconnectBrowser">Use this browser instead</button></p>
+    <p class="warnline" id="reconnectWarn" hidden></p>
+  </div></div>
+</div>
+</main>
+
+<script>
+const PAGED_URL = "https://unpkg.com/pagedjs@0.4.3/dist/paged.js";
+const FONTS = {
+  "EB Garamond":"EB+Garamond:ital,wght@0,400;0,600;1,400",
+  "Crimson Pro":"Crimson+Pro:ital,wght@0,400;0,600;1,400",
+  "Libre Baskerville":"Libre+Baskerville:ital,wght@0,400;0,700;1,400",
+  "Lora":"Lora:ital,wght@0,400;0,600;1,400",
+  "Alegreya":"Alegreya:ital,wght@0,400;0,600;1,400",
+  "Spectral":"Spectral:ital,wght@0,400;0,600;1,400",
+  "Cormorant Garamond":"Cormorant+Garamond:ital,wght@0,400;0,600;1,400",
+  "Cinzel":"Cinzel:wght@400;600",
+  "IM Fell English":"IM+Fell+English:ital@0;1",
+  "Playfair Display":"Playfair+Display:ital,wght@0,400;0,600;1,400"
+};
+const TRIMS = {"5x8":[5,8],"5.25x8":[5.25,8],"5.5x8.5":[5.5,8.5],"6x9":[6,9]};
+
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
+};
+
+const SAMPLE_TEXT = `# The Storm
+
+*An example chapter. Import your own manuscript on the Book tab.*
+
+The storm came in off the water the way it always did in autumn, low and sideways, and Kit had already decided she would not be out in it.
+
+She was out in it anyway.
+
+The path to the lighthouse was a hundred and twelve steps if you counted, and she counted, because counting was easier than thinking about the boat.
+
+***
+
+The keeper opened the door before she knocked. He looked at her face for a long moment, as if he had seen it somewhere before.
+
+"Well," said Abel Marsh. "You'd better come in."
+
+# Morning
+
+By morning the sea had forgotten everything. It lay flat and silver to the horizon, as if it had never thrown a boat at the rocks in its life.
+
+Kit found the keeper in the lamp room, polishing glass that did not need polishing.
+
+"You've been here before," he said, without turning around.`;
+
+const DEFAULT_END = [
+  {id:"about", name:"About the Author", text:"# About the Author\n\n[[image:Author photo|1.8in]]\n\nWrite a few lines about yourself here. Where you live, what you write, and where readers can find you."},
+  {id:"alsoby", name:"Also by the author", text:"# Also by the Author\n\nList your other books here, one per line.\n\nAdd covers side by side by putting several image tags on one line."}
+];
+
+let endLib = [];
+let images = {};
+let book = null;
+let selChapter = -1, selEnd = null;
+
+function newBook(){
+  return {
+    title:"The Lighthouse Keeper", subtitle:"An example book", author:"Your Name",
+    copyright:"Copyright © "+new Date().getFullYear()+" Your Name\n\nAll rights reserved. No part of this book may be reproduced without written permission from the author, except for brief quotations in reviews.\n\nThis is a work of fiction. Names, characters and places are products of the author's imagination.",
+    dedication:"", toc:true,
+    chapters: splitChapters(SAMPLE_TEXT, "Example"),
+    endIds:["about"],
+    s:{trim:"5.5x8.5", w:5.5, h:8.5, mt:0.75, mb:0.75, mi:0.875, mo:0.625,
+       headers:true, hleft:"", hright:"", numpos:"center",
+       font:"EB Garamond", size:11.5, lead:1.4, indent:0.3, justify:true, hyphen:true,
+       hfont:"EB Garamond", hsize:22, sink:1.6, label:"none", first:"both", orn:"❦", right:true,
+       scene:"* * *", sceneimg:""}
+  };
+}
+
+/* ---------- text parsing ---------- */
+const esc = t => t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function inline(t){
+  t = esc(t);
+  t = t.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>");
+  t = t.replace(/(^|[^\w*])\*(?!\s)(.+?)\*(?!\w)/g,"$1<em>$2</em>");
+  t = t.replace(/(^|[^\w])_(?!\s)(.+?)_(?!\w)/g,"$1<em>$2</em>");
+  return t;
+}
+const HEAD_RE = /^\s*(?:#{1,3}\s+(.+?)\s*#*\s*|((?:chapter|part)\s+[\w\-]+(?:[:.\s].*)?|prologue.*|epilogue.*|interlude.*))\s*$/i;
+const SCENE_RE = /^\s*(\*\s*\*\s*\*|\*{3,}|#|~{1,3}|-{3,})\s*$/;
+function isHeading(line){
+  if(SCENE_RE.test(line)) return null;
+  const m = line.match(HEAD_RE);
+  if(!m) return null;
+  const t = (m[1]||m[2]||"").trim();
+  return t && t.length <= 80 ? t : null;
+}
+function splitChapters(text, fallbackTitle){
+  const lines = text.replace(/\r\n?/g,"\n").split("\n");
+  const out = []; let cur = null;
+  for(const line of lines){
+    const h = isHeading(line);
+    if(h){ cur = {title:h, text:""}; out.push(cur); continue; }
+    if(!cur){ if(!line.trim()) continue; cur = {title:fallbackTitle||"Untitled", text:""}; out.push(cur); }
+    cur.text += line + "\n";
+  }
+  out.forEach(c => c.text = c.text.trim());
+  return out;
+}
+function imageTag(name, width){
+  const src = images[name];
+  if(!src) return `<span class="missing">[missing image: ${esc(name)}]</span>`;
+  return `<img src="${src}" alt="${esc(name)}" style="${width?`width:${esc(width)}`:""}">`;
+}
+const IMG_RE = /\[\[image:([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+function bodyHTML(text, s, isChapter){
+  const paras = []; let afterBreak = true; let firstDone = !isChapter;
+  for(const raw of text.replace(/\r\n?/g,"\n").split("\n")){
+    const line = raw.trim();
+    if(!line) continue;
+    if(SCENE_RE.test(line)){
+      const mark = s.sceneimg && images[s.sceneimg] ? imageTag(s.sceneimg,"0.6in") : esc(s.scene || "* * *");
+      paras.push(`<div class="scene">${mark}</div>`); afterBreak = true; continue;
+    }
+    const hm = line.match(/^#{1,3}\s+(.+)$/);
+    if(hm){ paras.push(`<h3 class="sub">${inline(hm[1])}</h3>`); afterBreak = true; continue; }
+    const onlyImgs = line.replace(IMG_RE,"").trim()==="" && IMG_RE.test(line);
+    IMG_RE.lastIndex = 0;
+    if(onlyImgs){
+      const tags = [...line.matchAll(IMG_RE)].map(m => imageTag(m[1].trim(), m[2] && m[2].trim()));
+      paras.push(`<div class="imgrow">${tags.join("")}</div>`); afterBreak = true; continue;
+    }
+    const cls = !firstDone ? "noindent first" : afterBreak ? "noindent" : "";
+    firstDone = true;
+    paras.push(`<p${cls?` class="${cls}"`:""}>${inline(line).replace(IMG_RE,(m,n,w)=>imageTag(n.trim(), w&&w.trim()))}</p>`);
+    afterBreak = false;
+  }
+  return paras.join("\n");
+}
+function paraBlock(text){ // simple blocks for copyright / dedication
+  return text.split(/\n\s*\n/).map(p => `<p>${inline(p.trim()).replace(/\n/g,"<br>")}</p>`).join("");
+}
+const ONES=["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+const TENS=["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+function words(n){ if(n<20) return ONES[n]; if(n<100) return TENS[Math.floor(n/10)]+(n%10?"-"+ONES[n%10]:""); return String(n); }
+
+/* ---------- book document ---------- */
+function bookCSS(s){
+  const W = s.trim==="custom" ? s.w : TRIMS[s.trim][0];
+  const H = s.trim==="custom" ? s.h : TRIMS[s.trim][1];
+  const hl = esc(s.hleft || book.author || "").replace(/\\/g,"");
+  const hr = esc(s.hright || book.title || "").replace(/\\/g,"");
+  const cssStr = t => '"' + t.replace(/&amp;/g,"&").replace(/&quot;/g,'\\"').replace(/&lt;/g,"<").replace(/&gt;/g,">") + '"';
+  const numL = s.numpos==="outside" ? "bottom-left" : "bottom-center";
+  const numR = s.numpos==="outside" ? "bottom-right" : "bottom-center";
+  const head = s.headers;
+  return `
+@page { size:${W}in ${H}in; margin-top:${s.mt}in; margin-bottom:${s.mb}in;
+  @top-center{ font-family:"${s.font}",serif; font-size:${(s.size*0.75).toFixed(1)}pt; letter-spacing:.12em; text-transform:uppercase; vertical-align:middle; }
+  @${numL}{ font-family:"${s.font}",serif; font-size:${(s.size*0.85).toFixed(1)}pt; }
+  @${numR}{ font-family:"${s.font}",serif; font-size:${(s.size*0.85).toFixed(1)}pt; } }
+@page :left { margin-left:${s.mo}in; margin-right:${s.mi}in; }
+@page :right { margin-left:${s.mi}in; margin-right:${s.mo}in; }
+@page front { @top-center{content:none} @bottom-center{content:none} @bottom-left{content:none} @bottom-right{content:none} }
+@page body:left { ${head?`@top-center{content:${cssStr(hl)}}`:""} @${numL}{content:counter(page)} }
+@page body:right { ${head?`@top-center{content:${cssStr(hr)}}`:""} @${numR}{content:counter(page)} }
+@page :blank { @top-center{content:none} @bottom-center{content:none} @bottom-left{content:none} @bottom-right{content:none} }
+html{ font-family:"${s.font}", Georgia, serif; font-size:${s.size}pt; line-height:${s.lead}; color:#111; }
+body{ margin:0; }
+.front{ page:front; break-after:page; }
+.titlepage{ text-align:center; padding-top:28%; }
+.titlepage h1{ font-family:"${s.hfont}",serif; font-weight:400; font-size:${Math.round(s.hsize*1.6)}pt; line-height:1.15; margin:0 0 .4em; }
+.titlepage .subtitle{ font-style:italic; font-size:1.15em; margin:0 0 3em; }
+.titlepage p, .dedication p{ text-align:center; text-indent:0; }
+.titlepage .author{ font-family:"${s.hfont}",serif; font-size:1.3em; letter-spacing:.08em; text-transform:uppercase; }
+.copyright{ font-size:.8em; line-height:1.4; display:flex; flex-direction:column; justify-content:flex-end; height:100%; }
+.copyright p{ margin:0 0 .8em; text-indent:0; }
+.dedication{ text-align:center; font-style:italic; padding-top:30%; }
+.toc h2{ font-family:"${s.hfont}",serif; font-weight:400; text-align:center; font-size:${s.hsize}pt; margin:${s.sink}in 0 1.5em; }
+.toc ol{ list-style:none; padding:0; margin:0; }
+.toc li{ margin:0 0 .45em; }
+.toc a{ display:flex; gap:.6em; color:inherit; text-decoration:none; }
+.toc a .t{ flex:1; border-bottom:1px dotted #999; }
+.toc a .pn{ min-width:1.5em; text-align:right; }
+.chapter, .endmatter{ page:body; break-before:${s.right?"right":"page"}; }
+.endmatter{ break-before:page; }
+.chapter-head{ text-align:center; margin:${s.sink}in 0 2em; }
+.chapter-head .label{ display:block; font-family:"${s.hfont}",serif; font-size:.85em; letter-spacing:.2em; text-transform:uppercase; margin-bottom:.6em; }
+.chapter-head h2{ font-family:"${s.hfont}",serif; font-weight:400; font-size:${s.hsize}pt; line-height:1.2; margin:0; }
+.chapter-head .orn{ display:block; margin-top:.5em; font-size:1.2em; }
+p{ margin:0; text-indent:${s.indent}in; text-align:${s.justify?"justify":"left"}; ${s.hyphen?"hyphens:auto;":""} widows:2; orphans:2; }
+p.noindent{ text-indent:0; }
+p.first::first-line{ ${s.first==="both"||s.first==="smallcaps"?"font-variant:small-caps; letter-spacing:.03em;":""} }
+p.first::first-letter{ ${s.first==="both"||s.first==="dropcap"?`float:left; font-size:3.15em; line-height:.82; padding:.06em .07em 0 0; font-family:"${s.hfont}",serif;`:""} }
+.scene{ text-align:center; margin:.9em 0; letter-spacing:.3em; break-after:avoid; }
+.scene img{ height:1.4em; width:auto; }
+h3.sub{ font-family:"${s.hfont}",serif; font-weight:400; font-size:1.15em; text-align:center; margin:1.2em 0 .6em; break-after:avoid; }
+.endmatter h2{ font-family:"${s.hfont}",serif; font-weight:400; text-align:center; font-size:${s.hsize}pt; margin:${(s.sink*0.6).toFixed(2)}in 0 1.2em; }
+.endmatter p{ text-indent:0; margin:0 0 .7em; text-align:left; }
+.imgrow{ display:flex; justify-content:center; gap:.18in; margin:.6em 0 1em; break-inside:avoid; }
+.imgrow img{ max-width:100%; max-height:3in; height:auto; }
+img{ max-width:100%; }
+.missing{ color:#b00; font-family:sans-serif; font-size:.8em; }
+`;
+}
+
+const PREVIEW_CSS = `@media screen{
+  body{ background:#8a8a84; }
+  .pagedjs_pages{ display:flex; flex-wrap:wrap; justify-content:center; gap:2px 0; width:calc(var(--pagedjs-width) * 2); margin:20px auto; zoom:var(--z,1); }
+  .pagedjs_page{ background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.35); margin-bottom:16px; }
+  .pagedjs_first_page{ margin-left:var(--pagedjs-width); }
+  .pagedjs_page.opener .pagedjs_margin-top-center, .pagedjs_page.opener .pagedjs_margin-bottom-center,
+  .pagedjs_page.opener .pagedjs_margin-bottom-left, .pagedjs_page.opener .pagedjs_margin-bottom-right{ visibility:hidden; }
+}
+@media print{
+  .pagedjs_page.opener .pagedjs_margin-top-center, .pagedjs_page.opener .pagedjs_margin-bottom-center,
+  .pagedjs_page.opener .pagedjs_margin-bottom-left, .pagedjs_page.opener .pagedjs_margin-bottom-right{ visibility:hidden; }
+}`;
+function buildDoc(){
+  const s = book.s;
+  const fams = [...new Set([s.font, s.hfont])].map(f => "family=" + (FONTS[f]||f.replace(/ /g,"+"))).join("&");
+  const chapters = book.chapters.map((c,i) => {
+    const n = i+1;
+    const label = s.label==="words" ? `Chapter ${words(n)}` : s.label==="digits" ? `Chapter ${n}` : s.label==="number" ? String(n) : "";
+    return `<section class="chapter${i===0?" first":""}" id="ch${n}">
+<div class="chapter-head">${label?`<span class="label">${label}</span>`:""}<h2>${inline(c.title)}</h2>${s.orn?`<span class="orn">${esc(s.orn)}</span>`:""}</div>
+${bodyHTML(c.text, s, true)}
+</section>`;
+  }).join("\n");
+  const toc = book.toc ? `<section class="front toc"><h2>Contents</h2><ol>${book.chapters.map((c,i)=>`<li><a href="#ch${i+1}"><span class="t">${inline(c.title)}</span><span class="pn"></span></a></li>`).join("")}</ol></section>` : "";
+  const ends = book.endIds.map(id => endLib.find(e => e.id===id)).filter(Boolean).map(e => {
+    const t = e.text.replace(/^#\s+(.+)$/m, (m,h)=>`\u0000H${h}`);
+    const parts = t.split("\n");
+    let html = "";
+    const rest = [];
+    for(const l of parts){ if(l.startsWith("\u0000H")) html += `<h2>${inline(l.slice(2))}</h2>`; else rest.push(l); }
+    return `<section class="endmatter">${html}${bodyHTML(rest.join("\n"), s).replace(/ class="noindent"/g,"")}</section>`;
+  }).join("\n");
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${fams}&display=swap">
+<script type="text/css" id="bookcss">${bookCSS(s)}<\/script>
+<style>${PREVIEW_CSS}</style>
+<script src="${PAGED_URL}"><\/script>
+<script>
+(function(){
+  function report(msg){ try{ parent.postMessage(Object.assign({mossPress:true}, msg), "*"); }catch(e){} }
+  if(!window.Paged){ report({error:"Couldn't load the page layout engine. Check your internet connection and refresh."}); return; }
+  class Openers extends Paged.Handler{
+    afterPageLayout(page){ if(page.querySelector(".chapter-head") || page.querySelector(".endmatter > h2")) page.classList.add("opener"); }
+  }
+  Paged.registerHandlers(Openers);
+  function finalize(){
+    var pages = Array.prototype.slice.call(document.querySelectorAll(".pagedjs_page"));
+    var n = 0, started = false;
+    pages.forEach(function(p){
+      if(!started && p.querySelector(".chapter.first .chapter-head")) started = true;
+      if(started){ n++; p.style.setProperty("--pn", '"' + n + '"'); p.setAttribute("data-pn", n); }
+      else p.style.setProperty("--pn", '""');
+    });
+    document.querySelectorAll('.toc a[href^="#"]').forEach(function(a){
+      var el = document.getElementById(a.getAttribute("href").slice(1));
+      var pg = el && el.closest(".pagedjs_page");
+      var pn = a.querySelector(".pn");
+      if(pn) pn.textContent = pg && pg.getAttribute("data-pn") || "";
+    });
+    var st = document.createElement("style");
+    st.textContent = '.pagedjs_margin-bottom-center .pagedjs_margin-content::after,.pagedjs_margin-bottom-left .pagedjs_margin-content::after,.pagedjs_margin-bottom-right .pagedjs_margin-content::after{content:var(--pn,"") !important}';
+    document.head.appendChild(st);
+    fit(); window.addEventListener("resize", fit);
+  }
+  function fit(){
+    var p = document.querySelector(".pagedjs_page"); if(!p) return;
+    var w = p.getBoundingClientRect().width / (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--z")) || 1);
+    var z = Math.min(1.25, (window.innerWidth - 40) / (2 * w));
+    document.documentElement.style.setProperty("--z", z.toFixed(3));
+  }
+  function go(){
+    var css = document.getElementById("bookcss").textContent; var sheet = {}; sheet[location.href] = css;
+    new Paged.Previewer().preview(undefined, [sheet]).then(function(flow){ finalize(); report({pages: flow.total}); })
+      .catch(function(e){ report({error: String(e && e.message || e)}); });
+  }
+  window.addEventListener("load", function(){ var done=false; function once(){ if(!done){ done=true; go(); } } if(document.fonts && document.fonts.ready) document.fonts.ready.then(once); setTimeout(once, 4000); });
+})();
+<\/script>
+</head><body>
+<section class="front titlepage"><h1>${inline(book.title||"")}</h1>${book.subtitle?`<p class="subtitle">${inline(book.subtitle)}</p>`:""}<p class="author">${inline(book.author||"")}</p></section>
+${book.copyright.trim()?`<section class="front copyright">${paraBlock(book.copyright)}</section>`:""}
+${book.dedication.trim()?`<section class="front dedication">${paraBlock(book.dedication)}</section>`:""}
+${toc}
+${chapters}
+${ends}
+</body></html>`;
+}
+
+/* ---------- UI wiring ---------- */
+const $ = id => document.getElementById(id);
+const statusEl = $("status");
+function setStatus(t){ statusEl.textContent = t; }
+
+document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav.tabs button").forEach(x => x.setAttribute("aria-selected", x===b));
+  document.querySelectorAll(".panel").forEach(p => p.hidden = p.dataset.panel !== b.dataset.tab);
+}));
+
+for(const sel of ["s_font","s_hfont"]){
+  $(sel).innerHTML = Object.keys(FONTS).map(f=>`<option>${f}</option>`).join("");
+}
+
+const BOOK_FIELDS = {f_title:"title", f_subtitle:"subtitle", f_author:"author", f_copyright:"copyright", f_dedication:"dedication"};
+const S_FIELDS = ["trim","w","h","mt","mb","mi","mo","headers","hleft","hright","numpos","font","size","lead","indent","justify","hyphen","hfont","hsize","sink","label","first","orn","right","scene","sceneimg"];
+
+function fillForm(){
+  for(const [id,k] of Object.entries(BOOK_FIELDS)) $(id).value = book[k] || "";
+  $("f_toc").checked = !!book.toc;
+  refreshSceneImgOptions();
+  for(const k of S_FIELDS){
+    const el = $("s_"+k); if(!el) continue;
+    if(el.type==="checkbox") el.checked = !!book.s[k]; else el.value = book.s[k] ?? "";
+  }
+  if(book.s.trim!=="custom"){ $("s_w").value = TRIMS[book.s.trim][0]; $("s_h").value = TRIMS[book.s.trim][1]; }
+  $("customTrim").hidden = book.s.trim!=="custom";
+  renderChapters(); renderEnd(); renderImages();
+}
+function readForm(){
+  for(const [id,k] of Object.entries(BOOK_FIELDS)) book[k] = $(id).value;
+  book.toc = $("f_toc").checked;
+  for(const k of S_FIELDS){
+    const el = $("s_"+k); if(!el) continue;
+    book.s[k] = el.type==="checkbox" ? el.checked : el.type==="number" ? parseFloat(el.value)||0 : el.value;
+  }
+  $("customTrim").hidden = book.s.trim!=="custom";
+}
+function saveLocal(){ markBook(); markShared(); }
+
+let timer = null;
+function scheduleRefresh(){ clearTimeout(timer); timer = setTimeout(refresh, book.chapters.length > 15 ? 2500 : 900); }
+document.querySelector("aside").addEventListener("input", e => {
+  if(e.target.closest("#chapterEditor") || e.target.closest("#endEditor") || e.target.type==="file") return;
+  readForm(); saveLocal(); scheduleRefresh();
+});
+
+function refresh(){
+  readForm();
+  setStatus("Laying out pages…");
+  $("proof").srcdoc = buildDoc();
+}
+window.addEventListener("message", e => {
+  const d = e.data; if(!d || !d.mossPress) return;
+  if(d.error){ setStatus(d.error); return; }
+  setStatus(`${d.pages} pages`);
+  gutterCheck(d.pages);
+});
+function gutterCheck(pages){
+  // KDP paperback minimum inside margins by page count
+  const need = pages<=150 ? .375 : pages<=300 ? .5 : pages<=500 ? .625 : pages<=700 ? .75 : .875;
+  const n = $("gutterNote");
+  n.hidden = false;
+  if(book.s.mi < need){ n.className = "note"; n.textContent = `At ${pages} pages, KDP asks for an inside margin of at least ${need} in. Yours is ${book.s.mi} in.`; }
+  else if(book.s.mo < .25){ n.className = "note"; n.textContent = "KDP asks for at least 0.25 in on the outside, top and bottom margins."; }
+  else { n.className = "note ok"; n.textContent = `At ${pages} pages, your inside margin meets KDP's ${need} in minimum.`; }
+}
+
+/* chapters */
+function renderChapters(){
+  const mk = (c,i,withMove) => {
+    const d = document.createElement("div");
+    d.className = "item" + (i===selChapter ? " sel" : "");
+    d.innerHTML = `<span class="name">${i+1}. ${esc(c.title)}</span>` + (withMove ? `<button data-a="up">↑</button><button data-a="down">↓</button><button data-a="del">Remove</button>` : "");
+    d.querySelector(".name").addEventListener("click", () => { selChapter = i; openChapter(); renderChapters(); });
+    if(withMove) d.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+      const a = b.dataset.a, arr = book.chapters;
+      if(a==="up" && i>0) [arr[i-1],arr[i]] = [arr[i],arr[i-1]];
+      if(a==="down" && i<arr.length-1) [arr[i+1],arr[i]] = [arr[i],arr[i+1]];
+      if(a==="del") { (book._removed=book._removed||[]).push(arr[i]); arr.splice(i,1); selChapter = -1; $("chapterEditor").hidden = true; }
+      renderChapters(); saveLocal(); scheduleRefresh();
+    }));
+    return d;
+  };
+  $("chapterList").replaceChildren(...book.chapters.map((c,i)=>mk(c,i,false)));
+  $("chapterOrder").replaceChildren(...book.chapters.map((c,i)=>mk(c,i,true)));
+}
+function openChapter(){
+  const c = book.chapters[selChapter]; if(!c) return;
+  $("chapterEditor").hidden = false; $("c_title").value = c.title; $("c_text").value = c.text;
+  document.querySelector('nav.tabs button[data-tab="book"]').click();
+}
+$("c_title").addEventListener("input", e => { const c = book.chapters[selChapter]; if(c){ c.title = e.target.value; renderChapters(); saveLocal(); scheduleRefresh(); }});
+$("c_text").addEventListener("input", e => { const c = book.chapters[selChapter]; if(c){ c.text = e.target.value; saveLocal(); scheduleRefresh(); }});
+$("btnAddChapter").addEventListener("click", () => { book.chapters.push({title:"New chapter", text:""}); selChapter = book.chapters.length-1; renderChapters(); openChapter(); saveLocal(); });
+
+$("fileText").addEventListener("change", async e => {
+  const files = [...e.target.files].sort((a,b)=>a.name.localeCompare(b.name, undefined, {numeric:true}));
+  if(!files.length) return;
+  const found = [];
+  for(const f of files){
+    const txt = await f.text();
+    const name = f.name.replace(/\.[^.]+$/,"").replace(/^\d+[\s._-]*/,"") || "Untitled";
+    found.push(...splitChapters(txt, name));
+  }
+  if($("replaceOnImport").checked) (book._removed=book._removed||[]).push(...book.chapters.filter(c=>c._file));
+  book.chapters = $("replaceOnImport").checked ? found : book.chapters.concat(found);
+  selChapter = -1; $("chapterEditor").hidden = true;
+  e.target.value = "";
+  renderChapters(); saveLocal(); refresh();
+  setStatus(`Imported ${found.length} chapter${found.length===1?"":"s"}. Laying out pages…`);
+});
+
+/* end matter */
+function renderEnd(){
+  $("endList").replaceChildren(...endLib.map(e => {
+    const d = document.createElement("div");
+    d.className = "item" + (e.id===selEnd ? " sel" : "");
+    const on = book.endIds.includes(e.id);
+    d.innerHTML = `<input type="checkbox" ${on?"checked":""} aria-label="Include in this book"><span class="name">${esc(e.name)}</span><button data-a="up">↑</button><button data-a="down">↓</button>`;
+    d.querySelector("input").addEventListener("change", ev => {
+      if(ev.target.checked){ if(!book.endIds.includes(e.id)) book.endIds.push(e.id); }
+      else book.endIds = book.endIds.filter(x => x!==e.id);
+      saveLocal(); scheduleRefresh();
+    });
+    d.querySelector(".name").addEventListener("click", () => { selEnd = e.id; openEnd(); renderEnd(); });
+    d.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+      const i = endLib.indexOf(e), j = b.dataset.a==="up" ? i-1 : i+1;
+      if(j<0 || j>=endLib.length) return;
+      [endLib[i], endLib[j]] = [endLib[j], endLib[i]];
+      book.endIds.sort((a,b2)=>endLib.findIndex(x=>x.id===a)-endLib.findIndex(x=>x.id===b2));
+      renderEnd(); saveLocal(); scheduleRefresh();
+    }));
+    return d;
+  }));
+}
+function openEnd(){
+  const e = endLib.find(x => x.id===selEnd); if(!e) { $("endEditor").hidden = true; return; }
+  $("endEditor").hidden = false; $("e_name").value = e.name; $("e_text").value = e.text;
+}
+$("e_name").addEventListener("input", ev => { const e = endLib.find(x=>x.id===selEnd); if(e){ e.name = ev.target.value; renderEnd(); saveLocal(); }});
+$("e_text").addEventListener("input", ev => { const e = endLib.find(x=>x.id===selEnd); if(e){ e.text = ev.target.value; saveLocal(); scheduleRefresh(); }});
+$("btnNewEnd").addEventListener("click", () => {
+  const id = "end" + Date.now();
+  endLib.push({id, name:"New page", text:"# New page\n\n"}); selEnd = id; renderEnd(); openEnd(); saveLocal();
+});
+let delArmed = false;
+$("btnDelEnd").addEventListener("click", ev => {
+  if(!delArmed){ delArmed = true; ev.target.textContent = "Click again to delete"; setTimeout(()=>{ delArmed=false; ev.target.textContent="Delete this page"; }, 3000); return; }
+  endLib = endLib.filter(x => x.id!==selEnd); book.endIds = book.endIds.filter(x => x!==selEnd);
+  selEnd = null; delArmed = false; ev.target.textContent = "Delete this page";
+  renderEnd(); openEnd(); saveLocal(); scheduleRefresh();
+});
+
+/* images */
+function refreshSceneImgOptions(){
+  $("s_sceneimg").innerHTML = `<option value="">Use the symbol</option>` + Object.keys(images).map(n=>`<option>${esc(n)}</option>`).join("");
+  $("s_sceneimg").value = book.s.sceneimg || "";
+}
+function renderImages(){
+  $("imgList").replaceChildren(...Object.entries(images).map(([name,src]) => {
+    const f = document.createElement("figure");
+    f.innerHTML = `<img src="${src}" alt=""><input type="text" value="${esc(name)}" aria-label="Image name"><button>Remove</button>`;
+    f.querySelector("input").addEventListener("change", ev => {
+      const nn = ev.target.value.trim(); if(!nn || nn===name || images[nn]) { ev.target.value = name; return; }
+      images[nn] = images[name]; delete images[name]; saveImages(); renderImages(); refreshSceneImgOptions();
+    });
+    f.querySelector("button").addEventListener("click", () => { delete images[name]; saveImages(); renderImages(); refreshSceneImgOptions(); scheduleRefresh(); });
+    return f;
+  }));
+}
+function saveImages(){ if(mode==="folder"){ markImages(); return; } if(!store.set("mossPress.images", images)) setStatus("Images are too big for browser storage. Use a folder, or Save project file to keep them."); }
+function loadImage(file){
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 1800, k = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement("canvas"); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        res(file.type==="image/png" ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", .9));
+      };
+      img.src = r.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+$("fileImg").addEventListener("change", async e => {
+  for(const f of e.target.files){
+    let name = f.name.replace(/\.[^.]+$/,""); let k = 2;
+    while(images[name]) name = f.name.replace(/\.[^.]+$/,"") + " " + k++;
+    images[name] = await loadImage(f);
+  }
+  e.target.value = ""; saveImages(); renderImages(); refreshSceneImgOptions(); scheduleRefresh();
+});
+
+$("btnRefresh").addEventListener("click", refresh);
+$("btnPrint").addEventListener("click", () => {
+  const w = $("proof").contentWindow;
+  if(!w || !w.document.querySelector(".pagedjs_pages")){ setStatus("Wait for the preview to finish laying out, then export."); return; }
+  setStatus("In the print dialog choose Save as PDF, Margins: None, and turn off Headers and footers.");
+  w.focus(); w.print();
+});
+
+/* =====================================================================
+   Library and saving. Three places a library can live:
+   - browser: localStorage (just trying it out)
+   - folder:  a folder on this computer (Chrome/Edge), the SAME layout the
+              Moss Writing Desk uses, so both apps can share one folder:
+     <Book folder>/book.json            title, author (shared with the Desk)
+     <Book folder>/press.json           Moss Press settings for this book
+     <Book folder>/chapters/01 Title.md "# Title", blank line, text
+     _press/end-matter/<Name>.md        reusable end matter pages
+     _press/images/<Name>.png           author photos, covers, ornaments
+     _press/library.json                order of the end matter library
+   ===================================================================== */
+const LIB_KEY="mossPress.library.v1", END_KEY="mossPress.endMatter", IMG_KEY="mossPress.images", MODE_KEY="mossPress.mode";
+let mode=null;            /* "browser" | "folder" */
+let library={books:{}};   /* id -> book */
+let current=null;         /* id of the open book */
+const enc=new TextEncoder();
+const fileSafe=s=>(String(s||"").replace(/[\u0000-\u001f\\/:*?"<>|]+/g," ").replace(/\s+/g," ").replace(/^[.\s]+|[.\s]+$/g,"").trim()||"untitled").slice(0,80);
+const randId=p=>p+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
+const oneLine=s=>String(s||"").replace(/\s*\n\s*/g," ").trim();
+
+/* ---------- zip (stored, no compression) for Download everything ---------- */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(u){let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0}
+function makeZip(files){
+  const parts=[],cen=[];let off=0;const now=new Date();
+  const dt=((now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1))&0xFFFF,dd=(((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate())&0xFFFF;
+  for(const f of files){
+    const name=enc.encode(f.name),data=typeof f.data==="string"?enc.encode(f.data):f.data,crc=crc32(data),flag=/^[\x20-\x7e]*$/.test(f.name)?0:0x0800;
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,flag,true);h.setUint16(10,dt,true);h.setUint16(12,dd,true);h.setUint32(14,crc,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);h.setUint16(26,name.length,true);
+    parts.push(new Uint8Array(h.buffer),name,data);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,flag,true);c.setUint16(12,dt,true);c.setUint16(14,dd,true);c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);c.setUint16(28,name.length,true);c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),name);off+=30+name.length+data.length;
+  }
+  const size=cen.reduce((a,u)=>a+u.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,size,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type:"application/zip"});
+}
+function dataUrlBytes(u){const b=atob(String(u).split(",")[1]||"");const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
+const extOf=u=>{const m=/^data:image\/(png|jpe?g|webp|gif|svg\+xml)/i.exec(u||"");return m?(m[1].toLowerCase()==="jpeg"?"jpg":m[1].toLowerCase()==="svg+xml"?"svg":m[1].toLowerCase()):"png"};
+function downloadBlob(name,blob){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
+
+/* ---------- one book as plain files (used by folder saving and Download everything) ---------- */
+function chapterStems(chs){
+  const w=chs.length>=100?3:2,used=new Set();
+  return chs.map((c,i)=>{const base=String(i+1).padStart(w,"0")+" "+fileSafe(c.title||"Untitled chapter");let s=base,n=2;while(used.has(s.toLowerCase()))s=base+" ("+(n++)+")";used.add(s.toLowerCase());return s});
+}
+const chapterFile=c=>"# "+(oneLine(c.title)||"Untitled chapter")+"\n\n"+String(c.text||"").replace(/\s+$/,"")+"\n";
+function endName(id){const e=endLib.find(x=>x.id===id);return e?e.name:null}
+function pressJson(b){
+  return JSON.stringify({app:"Moss Press",format:1,subtitle:b.subtitle||"",copyright:b.copyright||"",dedication:b.dedication||"",toc:!!b.toc,
+    endPages:(b.endIds||[]).map(endName).filter(Boolean),settings:b.s},null,2)+"\n";
+}
+function bookJson(b){
+  const base=b._bookJson&&typeof b._bookJson==="object"?{...b._bookJson}:{goal:50000,created:Date.now(),app:"Moss Writing Desk",format:1};
+  base.title=b.title||"Untitled book";base.author=b.author||"";
+  return JSON.stringify(base,null,2)+"\n";
+}
+function bookFiles(b){
+  const files=[{path:"book.json",text:bookJson(b)},{path:"press.json",text:pressJson(b)}];
+  chapterStems(b.chapters).forEach((s,i)=>files.push({path:"chapters/"+s+".md",text:chapterFile(b.chapters[i])}));
+  return files;
+}
+function sharedFiles(){
+  const files=[];
+  endLib.forEach(e=>files.push({path:"_press/end-matter/"+fileSafe(e.name)+".md",text:String(e.text||"")}));
+  files.push({path:"_press/library.json",text:JSON.stringify({app:"Moss Press",format:1,endMatterOrder:endLib.map(e=>fileSafe(e.name))},null,2)+"\n"});
+  return files;
+}
+
+/* ---------- browser storage ---------- */
+function browserLoad(){
+  const lib=store.get(LIB_KEY,null);
+  endLib=store.get(END_KEY,DEFAULT_END.map(e=>({...e})));
+  images=store.get(IMG_KEY,{});
+  if(lib&&lib.books&&Object.keys(lib.books).length){library=lib;current=lib.current&&lib.books[lib.current]?lib.current:Object.keys(lib.books)[0];return}
+  library={books:{}};
+  const old=store.get("mossPress.book",null);   /* a single book from the earliest Moss Press */
+  const id=randId("bk");
+  library.books[id]=old&&old.chapters?{...old,id}:sampleBook(id);
+  current=id;
+}
+function browserSave(){
+  library.current=current;
+  const lean={current,books:{}};
+  for(const id in library.books){const {_bookJson,_files,_removed,...rest}=library.books[id];lean.books[id]=rest}
+  return store.set(LIB_KEY,lean)&&store.set(END_KEY,endLib);
+}
+
+/* ---------- folder storage (File System Access API: Chrome and Edge on a computer) ---------- */
+const canFolder=typeof window.showDirectoryPicker==="function";
+let root=null,stamps=new Map(),written=new Map(),dirty=new Set(),dirtyShared=false,dirtyImages=false,saving=null,saveT=null,ownedEnd=new Set(),ownedImg=new Map();
+async function subDir(dir,path,create){let d=dir;for(const p of path.split("/").filter(Boolean))d=await d.getDirectoryHandle(p,{create:!!create});return d}
+function split(p){const a=p.split("/");const n=a.pop();return [a.join("/"),n]}
+async function fileAt(dir,path){const [d,n]=split(path);return (await (await subDir(dir,d,false)).getFileHandle(n)).getFile()}
+async function readText(dir,path){try{const f=await fileAt(dir,path);return {text:await f.text(),stamp:f.lastModified+":"+f.size}}catch(e){return null}}
+async function writeFile(dir,path,data){const [d,n]=split(path);const fh=await (await subDir(dir,d,true)).getFileHandle(n,{create:true});const w=await fh.createWritable();await w.write(data);await w.close();const f=await fh.getFile();return f.lastModified+":"+f.size}
+async function removeFile(dir,path){try{const [d,n]=split(path);await (await subDir(dir,d,false)).removeEntry(n)}catch(e){}}
+async function entries(dir,path){const out=[];try{const d=path?await subDir(dir,path,false):dir;for await (const [name,h] of d.entries())out.push({name,kind:h.kind,h})}catch(e){}return out}
+const isText=n=>/\.(md|txt|markdown)$/i.test(n)&&!n.startsWith(".");
+const isImg=n=>/\.(png|jpe?g|webp|gif|svg)$/i.test(n)&&!n.startsWith(".");
+const skipDir=n=>n.startsWith("_")||n.startsWith(".");
+function parseChapterFile(name,text){
+  const stem=name.replace(/\.(md|txt|markdown)$/i,"");
+  const lines=String(text||"").replace(/\r\n?/g,"\n").split("\n");let title=null;
+  const i=lines.findIndex(l=>l.trim()!=="");
+  if(i>=0&&/^#\s+/.test(lines[i])){title=lines[i].replace(/^#\s+/,"").trim();lines.splice(0,i+1)}
+  if(title==null)title=stem.replace(/^\d+\s*[-_.]?\s*/,"")||stem;
+  return {title,text:lines.join("\n").replace(/^\n+/,"").replace(/\s+$/,""),stem};
+}
+async function folderLoad(){
+  const lib={books:{}},st=new Map();
+  const rd=async(dir,path,key)=>{const r=await readText(dir,path);if(r){written.set(key,r.text);st.set(key,r.stamp)}return r&&r.text};
+  for(const e of await entries(root,"")){
+    if(e.kind!=="directory"||skipDir(e.name))continue;
+    const kids=await entries(e.h,"");
+    if(!kids.some(k=>(k.kind==="directory"&&k.name==="chapters")||(k.kind==="file"&&(k.name==="book.json"||k.name==="press.json"))))continue;
+    const id=e.name,b=sampleBook(id,true);
+    let bj=null,pj=null;
+    try{bj=JSON.parse(await rd(e.h,"book.json",id+"/book.json")||"null")}catch(x){}
+    try{pj=JSON.parse(await rd(e.h,"press.json",id+"/press.json")||"null")}catch(x){}
+    b._bookJson=bj||null;
+    b.title=String((bj&&bj.title)||id);b.author=String((bj&&bj.author)||"");
+    if(pj){b.subtitle=pj.subtitle||"";if(typeof pj.copyright==="string")b.copyright=pj.copyright;b.dedication=pj.dedication||"";b.toc=pj.toc!==false;
+      b.s=Object.assign(newBook().s,pj.settings||{});b._endNames=Array.isArray(pj.endPages)?pj.endPages:[]}
+    else{b.copyright=defaultCopyright(b.author);b._endNames=[]}
+    const files=(await entries(e.h,"chapters")).filter(k=>k.kind==="file"&&isText(k.name)).sort((a,c)=>a.name.localeCompare(c.name,undefined,{numeric:true}));
+    b.chapters=[];
+    for(const f of files){const t=await rd(e.h,"chapters/"+f.name,id+"/chapters/"+f.name);if(t==null)continue;const p=parseChapterFile(f.name,t);b.chapters.push({title:p.title,text:p.text,_file:f.name})}
+    lib.books[id]=b;
+  }
+  /* shared end matter library */
+  const ends=[];ownedEnd=new Set();
+  for(const f of (await entries(root,"_press/end-matter")).filter(k=>k.kind==="file"&&isText(k.name))){
+    const t=await rd(root,"_press/end-matter/"+f.name,"_press/end-matter/"+f.name);if(t==null)continue;
+    const name=f.name.replace(/\.(md|txt|markdown)$/i,"");ends.push({id:name,name,text:t});ownedEnd.add(f.name);
+  }
+  let order=[];try{order=(JSON.parse(await rd(root,"_press/library.json","_press/library.json")||"{}").endMatterOrder)||[]}catch(x){}
+  ends.sort((a,c)=>{const i=order.indexOf(a.name),j=order.indexOf(c.name);return (i<0?999:i)-(j<0?999:j)||a.name.localeCompare(c.name)});
+  /* images, read as data URLs for the preview */
+  const imgs={};ownedImg=new Map();
+  for(const f of (await entries(root,"_press/images")).filter(k=>k.kind==="file"&&isImg(k.name))){
+    try{const file=await f.h.getFile();st.set("_press/images/"+f.name,file.lastModified+":"+file.size);
+      imgs[f.name.replace(/\.[^.]+$/,"")]=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(file)});
+      ownedImg.set(f.name.replace(/\.[^.]+$/,""),f.name)}catch(x){}
+  }
+  stamps=st;
+  return {lib,ends,imgs};
+}
+function applyFolderData({lib,ends,imgs}){
+  library=lib;images=imgs;
+  endLib=ends.length?ends:DEFAULT_END.map(e=>({...e,id:e.name}));
+  if(!ends.length)dirtyShared=true;
+  for(const id in library.books){const b=library.books[id];b.endIds=(b._endNames||[]).filter(n=>endLib.some(e=>e.id===n));delete b._endNames}
+}
+async function writeBook(id){
+  const b=library.books[id];if(!b)return;
+  const dir=await root.getDirectoryHandle(id,{create:true});
+  const files=bookFiles(b),stems=chapterStems(b.chapters);
+  /* renamed chapter files: keep the Desk's summaries.md headings paired with them */
+  const ren={};b.chapters.forEach((c,i)=>{const nf=stems[i]+".md";if(c._file&&c._file!==nf)ren[c._file.replace(/\.md$/i,"")]=stems[i]});
+  if(Object.keys(ren).length){
+    const sm=await readText(dir,"summaries.md");
+    if(sm){const out=sm.text.replace(/^##[ \t]+(.+?)[ \t]*$/gm,(m,h)=>ren[h]!=null?"## "+ren[h]:m);if(out!==sm.text){const s=await writeFile(dir,"summaries.md",out);stamps.set(id+"/summaries.md",s)}}
+  }
+  for(const f of files){const k=id+"/"+f.path;if(written.get(k)!==f.text){stamps.set(k,await writeFile(dir,f.path,f.text));written.set(k,f.text)}}
+  const keep=new Set(files.map(f=>f.path));
+  /* chapters removed in the Press go to the book's trash folder, never deleted outright */
+  for(const r of (b._removed||[])){let n=fileSafe(r.title||"Removed chapter"),p="trash/chapters/"+n+".md",k=2;while(await readText(dir,p))p="trash/chapters/"+n+" ("+(k++)+").md";await writeFile(dir,p,chapterFile(r));
+    if(r._file&&!keep.has("chapters/"+r._file)){await removeFile(dir,"chapters/"+r._file);written.delete(id+"/chapters/"+r._file);stamps.delete(id+"/chapters/"+r._file)}}
+  b._removed=[];
+  for(const c of b.chapters){if(c._file&&!keep.has("chapters/"+c._file)){await removeFile(dir,"chapters/"+c._file);written.delete(id+"/chapters/"+c._file);stamps.delete(id+"/chapters/"+c._file)}}
+  b.chapters.forEach((c,i)=>{c._file=stems[i]+".md"});
+  b._bookJson=JSON.parse(files[0].text);
+}
+async function writeShared(){
+  const files=sharedFiles(),keep=new Set();
+  for(const f of files){const k=f.path;if(f.path.startsWith("_press/end-matter/"))keep.add(f.path.slice(18));if(written.get(k)!==f.text){stamps.set(k,await writeFile(root,f.path,f.text));written.set(k,f.text)}}
+  for(const n of ownedEnd)if(!keep.has(n)){await removeFile(root,"_press/end-matter/"+n);written.delete("_press/end-matter/"+n);stamps.delete("_press/end-matter/"+n)}
+  ownedEnd=keep;
+}
+async function writeImages(){
+  for(const [name,file] of ownedImg)if(!images[name]){await removeFile(root,"_press/images/"+file);stamps.delete("_press/images/"+file);ownedImg.delete(name)}
+  for(const name in images){
+    const file=fileSafe(name)+"."+extOf(images[name]);
+    if(ownedImg.get(name)===file)continue;
+    stamps.set("_press/images/"+file,await writeFile(root,"_press/images/"+file,new Blob([dataUrlBytes(images[name])])));
+    const old=ownedImg.get(name);if(old&&old!==file){await removeFile(root,"_press/images/"+old);stamps.delete("_press/images/"+old)}
+    ownedImg.set(name,file);
+  }
+}
+async function folderSync(){
+  clearTimeout(saveT);
+  while(saving)await saving;
+  if(!dirty.size&&!dirtyShared&&!dirtyImages)return true;
+  const books=[...dirty];dirty.clear();const sh=dirtyShared,im=dirtyImages;dirtyShared=dirtyImages=false;
+  let ok=true;
+  saving=(async()=>{
+    for(const id of books){try{await writeBook(id)}catch(e){ok=false;dirty.add(id)}}
+    if(sh){try{await writeShared()}catch(e){ok=false;dirtyShared=true}}
+    if(im){try{await writeImages()}catch(e){ok=false;dirtyImages=true}}
+  })();
+  try{await saving}finally{saving=null}
+  if(!ok){setStatus("Couldn't write to your folder. Is it still there? Retrying.");saveT=setTimeout(folderSync,5000)}
+  return ok;
+}
+async function changedOnDisk(){
+  const seen=new Map();
+  const stamp=async(key,h)=>{try{const f=await h.getFile();seen.set(key,f.lastModified+":"+f.size)}catch(e){}};
+  for(const e of await entries(root,"")){
+    if(e.kind!=="directory"||skipDir(e.name))continue;
+    const kids=await entries(e.h,"");
+    if(!kids.some(k=>(k.kind==="directory"&&k.name==="chapters")||(k.kind==="file"&&(k.name==="book.json"||k.name==="press.json"))))continue;
+    for(const k of kids)if(k.kind==="file"&&(k.name==="book.json"||k.name==="press.json"))await stamp(e.name+"/"+k.name,k.h);
+    for(const k of await entries(e.h,"chapters"))if(k.kind==="file"&&isText(k.name))await stamp(e.name+"/chapters/"+k.name,k.h);
+  }
+  for(const k of await entries(root,"_press/end-matter"))if(k.kind==="file"&&isText(k.name))await stamp("_press/end-matter/"+k.name,k.h);
+  for(const k of await entries(root,"_press"))if(k.kind==="file"&&k.name==="library.json")await stamp("_press/library.json",k.h);
+  for(const k of await entries(root,"_press/images"))if(k.kind==="file"&&isImg(k.name))await stamp("_press/images/"+k.name,k.h);
+  const mine=[...stamps.keys()].filter(k=>!k.endsWith("/summaries.md"));
+  if(seen.size!==mine.length)return true;
+  for(const [k,v] of seen)if(stamps.get(k)!==v)return true;
+  return false;
+}
+
+/* ---------- saving, whichever place ---------- */
+function markBook(){if(!book)return;if(mode==="folder"){dirty.add(book.id);clearTimeout(saveT);saveT=setTimeout(folderSync,700)}else if(!browserSave())setStatus("Couldn't autosave in the browser. Use Save project file to keep your work.")}
+function markShared(){if(mode==="folder"){dirtyShared=true;clearTimeout(saveT);saveT=setTimeout(folderSync,700)}else browserSave()}
+function markImages(){if(mode==="folder"){dirtyImages=true;clearTimeout(saveT);saveT=setTimeout(folderSync,700)}else saveImages()}
+
+/* remember the chosen folder between visits */
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open("moss-press",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function idbGet(k){try{const d=await idb();return await new Promise(r=>{const q=d.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})}catch(e){return null}}
+async function idbSet(k,v){try{const d=await idb();await new Promise(r=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=r;t.onerror=r})}catch(e){}}
+
+/* ---------- books ---------- */
+function defaultCopyright(author){
+  const who=author||"Your Name";
+  return "Copyright © "+new Date().getFullYear()+" "+who+"\n\nAll rights reserved. No part of this book may be reproduced without written permission from the author, except for brief quotations in reviews.\n\nThis is a work of fiction. Names, characters and places are products of the author's imagination.";
+}
+function sampleBook(id,blank){
+  const b=newBook();b.id=id;
+  if(blank){b.title="New book";b.subtitle="";b.author="";b.copyright=defaultCopyright("");b.chapters=[{title:"Chapter 1",text:""}];b.endIds=[]}
+  return b;
+}
+const bookIds=()=>Object.keys(library.books).sort((a,b)=>String(library.books[a].title).localeCompare(String(library.books[b].title)));
+function renderBookSel(){
+  const sel=$("bookSel");sel.innerHTML="";
+  bookIds().forEach(id=>{const o=document.createElement("option");o.value=id;o.textContent=library.books[id].title||"Untitled book";if(id===current)o.selected=true;sel.append(o)});
+}
+function openBook(id){
+  if(!library.books[id])return;
+  current=id;book=library.books[id];book.s=Object.assign(newBook().s,book.s||{});
+  if(!Array.isArray(book.endIds))book.endIds=[];
+  try{localStorage.setItem("mossPress.current",id)}catch(e){}
+  selChapter=-1;$("chapterEditor").hidden=true;
+  fillForm();renderBookSel();refresh();
+}
+$("bookSel").addEventListener("change",e=>{if(mode==="folder")folderSync();else browserSave();openBook(e.target.value)});
+$("btnNewBook").addEventListener("click",()=>{
+  let title="New book";
+  if(mode==="folder"){const t=prompt("Name your new book. It also becomes the name of its folder.","New book");if(t==null||!t.trim())return;title=t.trim()}
+  let id=mode==="folder"?fileSafe(title):randId("bk"),base=id,n=2;
+  while(library.books[id]||(mode==="folder"&&Object.keys(library.books).some(k=>k.toLowerCase()===id.toLowerCase())))id=base+" "+(n++);
+  const b=sampleBook(id,true);b.title=title;library.books[id]=b;
+  openBook(id);markBook();
+});
+/* keep the title in the book switcher up to date */
+$("f_title").addEventListener("input",()=>{const o=[...$("bookSel").options].find(x=>x.value===current);if(o)o.textContent=$("f_title").value||"Untitled book"});
+
+/* ---------- project files (one book you can carry anywhere) ---------- */
+$("btnSave").addEventListener("click",()=>{
+  readForm();
+  const {_bookJson,_removed,...plain}=book;
+  const usedImgs={};const all=[book.copyright,book.dedication,...book.chapters.map(c=>c.text),...book.endIds.map(id=>(endLib.find(e=>e.id===id)||{}).text||"")].join("\n");
+  for(const n in images)if(all.includes("image:"+n)||book.s.sceneimg===n)usedImgs[n]=images[n];
+  const data=JSON.stringify({mossPress:1,book:plain,endLib:endLib.filter(e=>book.endIds.includes(e.id)),images:usedImgs},null,1);
+  downloadBlob(fileSafe(book.title||"book")+".mosspress.json",new Blob([data],{type:"application/json"}));
+  setStatus("Project file saved to your Downloads folder.");
+});
+$("btnOpen").addEventListener("click",()=>$("fileProject").click());
+$("fileProject").addEventListener("change",async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const d=JSON.parse(await f.text());
+    if(!d.book)throw new Error("not a Moss Press project");
+    const map={};
+    if(d.endLib)for(const x of d.endLib){
+      const same=endLib.find(y=>y.name===x.name);
+      if(same)map[x.id]=same.id;else{const nid=mode==="folder"?x.name:x.id||randId("end");endLib.push({id:nid,name:x.name,text:x.text});map[x.id]=nid}
+    }
+    if(d.images)for(const n in d.images)if(!images[n])images[n]=d.images[n];
+    let id=mode==="folder"?fileSafe(d.book.title||"Imported book"):randId("bk"),base=id,n=2;while(library.books[id])id=base+" "+(n++);
+    const b={...d.book,id};b.endIds=(b.endIds||[]).map(x=>map[x]||x).filter(x=>endLib.some(e=>e.id===x));
+    b.chapters=(b.chapters||[]).map(c=>({title:c.title,text:c.text}));
+    library.books[id]=b;openBook(id);
+    markBook();markShared();markImages();
+    setStatus("Opened "+f.name+" as a new book in your library.");
+  }catch(err){setStatus("That file isn't a Moss Press project.")}
+  e.target.value="";
+});
+
+/* ---------- Download everything: every book plus the shared library, as plain files ---------- */
+$("btnZip").addEventListener("click",async()=>{
+  readForm();if(mode==="folder")await folderSync();
+  const files=[],used=new Set();
+  for(const id of bookIds()){
+    const b=library.books[id];let folder=mode==="folder"?id:fileSafe(b.title||"Untitled book"),base=folder,n=2;
+    while(used.has(folder.toLowerCase()))folder=base+" "+(n++);used.add(folder.toLowerCase());
+    bookFiles(b).forEach(f=>files.push({name:folder+"/"+f.path,data:f.text}));
+  }
+  sharedFiles().forEach(f=>files.push({name:f.path,data:f.text}));
+  for(const n in images)files.push({name:"_press/images/"+fileSafe(n)+"."+extOf(images[n]),data:dataUrlBytes(images[n])});
+  const d=new Date(),stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  downloadBlob("Moss Press "+stamp+".zip",makeZip(files));
+  setStatus("Every book saved as a zip in your Downloads folder.");
+});
+
+/* ---------- where the library lives ---------- */
+function describeWhere(){
+  const w=$("whereLine");w.innerHTML="";
+  const b=document.createElement("b");
+  if(mode==="folder"){b.textContent=root.name;w.append("Saving to the folder ",b,". Each book is a folder of plain files. A Moss Writing Desk folder works here too.")}
+  else{b.textContent="in this browser only";w.append("Saving ",b,". Good for trying it out. Use Download everything or Save project file now and then, or move to a folder.")}
+  $("btnReload").hidden=mode!=="folder";
+}
+function showSetup(back){
+  $("setup").hidden=false;$("reconnect").hidden=true;
+  $("pickFolder").disabled=!canFolder;$("folderNo").hidden=canFolder;
+  $("setupWarn").hidden=true;$("setupBack").hidden=!back;
+}
+$("btnChange").addEventListener("click",()=>{if(mode==="folder")folderSync();showSetup(true)});
+$("setupCancel").addEventListener("click",()=>{$("setup").hidden=true});
+async function chooseFolder(warn){
+  let h;
+  try{h=await window.showDirectoryPicker({id:"moss-press",mode:"readwrite"})}
+  catch(e){if(e&&e.name!=="AbortError"){warn.textContent="That folder could not be opened.";warn.hidden=false}return null}
+  try{if(await h.requestPermission({mode:"readwrite"})!=="granted"){warn.textContent="The browser did not allow saving to that folder.";warn.hidden=false;return null}}catch(e){}
+  const kids=await entries(h,"");
+  if(kids.some(k=>(k.kind==="directory"&&k.name==="chapters")||(k.kind==="file"&&(k.name==="book.json"||k.name==="press.json")))){
+    warn.textContent="That folder looks like one single book. Pick the folder that holds your books (the one above it), or a new empty folder.";warn.hidden=false;return null}
+  return h;
+}
+async function startFolder(h){
+  root=h;mode="folder";
+  setStatus("Opening your folder…");
+  let data;
+  try{data=await folderLoad()}catch(e){setStatus("That folder could not be read.");return false}
+  applyFolderData(data);
+  /* first time in this folder: bring along the books kept in this browser */
+  if(!Object.keys(library.books).length){
+    const lib=store.get(LIB_KEY,null),ends=store.get(END_KEY,null),imgs=store.get(IMG_KEY,null);
+    let n=0;
+    if(lib&&lib.books)for(const k in lib.books){const b=lib.books[k];let id=fileSafe(b.title||"Untitled book"),base=id,i=2;while(library.books[id])id=base+" "+(i++);
+      const endNames=(b.endIds||[]).map(x=>((ends||[]).find(e=>e.id===x)||{}).name).filter(Boolean);
+      library.books[id]={...b,id,_endNames:endNames};dirty.add(id);n++}
+    if(ends&&ends.length){endLib=ends.map(e=>({id:e.name,name:e.name,text:e.text}));dirtyShared=true}
+    for(const k in library.books){const b=library.books[k];if(b._endNames){b.endIds=b._endNames.filter(x=>endLib.some(e=>e.id===x));delete b._endNames}}
+    if(imgs&&Object.keys(imgs).length){images=imgs;dirtyImages=true}
+    if(!n){const id="The Lighthouse Keeper";library.books[id]=sampleBook(id);library.books[id].endIds=endLib.filter(e=>/about/i.test(e.name)).map(e=>e.id);dirty.add(id)}
+    await folderSync();
+    if(n)setTimeout(()=>setStatus("Copied "+n+(n===1?" book":" books")+" from this browser into your folder."),1500);
+  }
+  return true;
+}
+async function begin(){
+  document.body.classList.remove("nostore");
+  $("setup").hidden=true;$("reconnect").hidden=true;describeWhere();
+  let want=null;try{want=localStorage.getItem("mossPress.current")}catch(e){}
+  openBook(library.books[want]?want:(library.books[current]?current:bookIds()[0]));
+}
+$("pickFolder").addEventListener("click",async()=>{
+  const h=await chooseFolder($("setupWarn"));if(!h)return;
+  await idbSet("folder",h);store.set(MODE_KEY,"folder");
+  if(mode==="folder")await folderSync();
+  dirty.clear();written.clear();stamps.clear();
+  if(await startFolder(h))begin();
+});
+$("pickBrowser").addEventListener("click",async()=>{
+  if(mode==="folder")await folderSync();
+  store.set(MODE_KEY,"browser");mode="browser";browserLoad();begin();
+});
+$("reconnectBtn").addEventListener("click",async()=>{
+  const h=await idbGet("folder");
+  try{if(h&&await h.requestPermission({mode:"readwrite"})==="granted"){if(await startFolder(h))begin();return}}catch(e){}
+  $("reconnectWarn").textContent="The browser did not allow it. Try again, or choose the folder again.";$("reconnectWarn").hidden=false;
+});
+$("reconnectOther").addEventListener("click",async()=>{const h=await chooseFolder($("reconnectWarn"));if(!h)return;await idbSet("folder",h);if(await startFolder(h))begin()});
+$("reconnectBrowser").addEventListener("click",()=>{store.set(MODE_KEY,"browser");mode="browser";browserLoad();begin()});
+
+/* pick up changes an AI agent (or the Writing Desk) made to the files */
+let checking=false,checkLater=null;
+async function checkFolder(force){
+  if(mode!=="folder"||checking)return;
+  if(saving||dirty.size||dirtyShared||dirtyImages){clearTimeout(checkLater);checkLater=setTimeout(()=>checkFolder(force),1500);return}
+  checking=true;
+  try{
+    if(force||await changedOnDisk()){
+      const keep=current;const data=await folderLoad();applyFolderData(data);
+      openBook(library.books[keep]?keep:bookIds()[0]);
+      setStatus(force?"Reloaded from the folder.":"Picked up changes from your folder.");
+    }else if(force)setStatus("Already up to date.");
+  }catch(e){setStatus("Could not read the folder. Is it still there?")}
+  finally{checking=false}
+}
+$("btnReload").addEventListener("click",()=>checkFolder(true));
+window.addEventListener("focus",()=>checkFolder());
+document.addEventListener("visibilitychange",()=>{if(document.hidden){if(mode==="folder")folderSync()}else checkFolder()});
+window.addEventListener("beforeunload",e=>{if(mode==="folder"&&(dirty.size||dirtyShared||dirtyImages||saving)){folderSync();e.preventDefault();e.returnValue=""}});
+
+/* ---------- boot ---------- */
+(async function boot(){
+  const m=store.get(MODE_KEY,null);
+  if(m==="folder"&&canFolder){
+    const h=await idbGet("folder");
+    if(h){
+      let p="prompt";try{p=await h.queryPermission({mode:"readwrite"})}catch(e){}
+      if(p==="granted"){if(await startFolder(h)){begin();return}}
+      $("reconnect").hidden=false;$("reconnectName").textContent="Folder: "+h.name;setStatus("Waiting for your folder");return;
+    }
+  }
+  if(m==="browser"){mode="browser";browserLoad();begin();return}
+  setStatus("Choose where your books live");showSetup(false);
+})();
+
+</script>
+</body>
+</html>
