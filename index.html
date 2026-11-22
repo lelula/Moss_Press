@@ -266,6 +266,8 @@ body.dragging iframe{pointer-events:none}
       <label>Ornament under the title<select id="s_orn">
         <option value="">None</option><option value="❦">❦</option><option value="✦">✦</option><option value="~">~</option><option value="—">—</option>
       </select></label>
+      <label>Or use an image from Images<select id="s_ornimg"></select></label>
+      <label>Ornament image height (in)<input type="number" step="0.05" min="0.1" id="s_ornh"></label>
       <label class="row"><input type="checkbox" id="s_right"> Start every chapter on a right-hand page</label>
     </section>
     <section>
@@ -460,7 +462,7 @@ function newBook(){
        headers:true, hleft:"", hright:"", numpos:"center",
        font:"EB Garamond", size:11.5, lead:1.4, indent:0.3, justify:true, hyphen:true,
        hfont:"EB Garamond", hsize:22, sink:1.6, label:"none", first:"both", orn:"❦", right:true,
-       scene:"* * *", sceneimg:""}
+       scene:"* * *", sceneimg:"", ornimg:"", ornh:0.3}
   };
 }
 
@@ -647,6 +649,8 @@ body{ margin:0; }
 .chapter-head .label{ display:block; font-family:"${s.hfont}",serif; font-size:.85em; letter-spacing:.2em; text-transform:uppercase; margin-bottom:.6em; }
 .chapter-head h2{ font-family:"${s.hfont}",serif; font-weight:400; font-size:${s.hsize}pt; line-height:1.2; margin:0; }
 .chapter-head .orn{ display:block; margin-top:.5em; font-size:1.2em; }
+.chapter-head .orn.img{ line-height:0; margin-top:.45em; }
+.chapter-head .orn img{ display:inline-block; max-width:80%; }
 p{ margin:0; text-indent:${s.indent}in; text-align:${s.justify?"justify":"left"}; ${s.hyphen?"hyphens:auto;":""} widows:2; orphans:2; }
 p.noindent{ text-indent:0; }
 p.first::first-line{ ${s.first==="both"||s.first==="smallcaps"?"font-variant:small-caps; letter-spacing:.03em;":""} }
@@ -695,7 +699,7 @@ function buildDoc(){
     const n = i+1;
     const label = s.label==="words" ? `Chapter ${words(n)}` : s.label==="digits" ? `Chapter ${n}` : s.label==="number" ? String(n) : "";
     return `<section class="chapter${i===0?" first":""}" id="ch${n}">
-<div class="chapter-head">${label?`<span class="label">${label}</span>`:""}<h2>${inline(c.title)}</h2>${s.orn?`<span class="orn">${esc(s.orn)}</span>`:""}</div>
+<div class="chapter-head">${label?`<span class="label">${label}</span>`:""}<h2>${inline(c.title)}</h2>${s.ornimg && images[s.ornimg] ? `<span class="orn img"><img src="${images[s.ornimg]}" alt="" style="height:${Math.max(0.1, parseFloat(s.ornh)||0.3)}in;width:auto"></span>` : s.orn?`<span class="orn">${esc(s.orn)}</span>`:""}</div>
 ${bodyHTML(c.text, s, true)}
 </section>`;
   }).join("\n");
@@ -773,7 +777,7 @@ for(const sel of ["s_font","s_hfont"]){
 }
 
 const BOOK_FIELDS = {f_title:"title", f_subtitle:"subtitle", f_author:"author", f_copyright:"copyright", f_dedication:"dedication"};
-const S_FIELDS = ["trim","w","h","mt","mb","mi","mo","headers","hleft","hright","numpos","font","size","lead","indent","justify","hyphen","hfont","hsize","sink","label","first","orn","right","scene","sceneimg"];
+const S_FIELDS = ["trim","w","h","mt","mb","mi","mo","headers","hleft","hright","numpos","font","size","lead","indent","justify","hyphen","hfont","hsize","sink","label","first","orn","ornimg","ornh","right","scene","sceneimg"];
 
 function fillForm(){
   for(const [id,k] of Object.entries(BOOK_FIELDS)) $(id).value = book[k] || "";
@@ -948,6 +952,8 @@ $("btnDelEnd").addEventListener("click", ev => {
 function refreshSceneImgOptions(){
   $("s_sceneimg").innerHTML = `<option value="">Use the symbol</option>` + Object.keys(images).map(n=>`<option>${esc(n)}</option>`).join("");
   $("s_sceneimg").value = book.s.sceneimg || "";
+  $("s_ornimg").innerHTML = `<option value="">Use the symbol above</option>` + Object.keys(images).map(n=>`<option>${esc(n)}</option>`).join("");
+  $("s_ornimg").value = book.s.ornimg || "";
 }
 function renderImages(){
   $("imgList").replaceChildren(...Object.entries(images).map(([name,src]) => {
@@ -955,7 +961,9 @@ function renderImages(){
     f.innerHTML = `<img src="${src}" alt=""><input type="text" value="${esc(name)}" aria-label="Image name"><button>Remove</button>`;
     f.querySelector("input").addEventListener("change", ev => {
       const nn = ev.target.value.trim(); if(!nn || nn===name || images[nn]) { ev.target.value = name; return; }
-      images[nn] = images[name]; delete images[name]; saveImages(); renderImages(); refreshSceneImgOptions();
+      images[nn] = images[name]; delete images[name];
+      for(const id in library.books){ const bs = library.books[id].s || {}; if(bs.sceneimg === name) bs.sceneimg = nn; if(bs.ornimg === name) bs.ornimg = nn; }
+      saveImages(); renderImages(); refreshSceneImgOptions(); markBook();
     });
     f.querySelector("button").addEventListener("click", () => { delete images[name]; saveImages(); renderImages(); refreshSceneImgOptions(); scheduleRefresh(); });
     return f;

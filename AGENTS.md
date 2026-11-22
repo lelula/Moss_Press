@@ -97,6 +97,7 @@ The keeper opened the door before she knocked.
 | `label` | Chapter label | `"none"`, `"words"` (Chapter One), `"digits"` (Chapter 1), `"number"` (1) |
 | `first` | First paragraph of a chapter | `"both"` (drop cap + small caps line), `"dropcap"`, `"smallcaps"`, `"plain"` |
 | `orn` | Ornament under the chapter title | `""`, `"❦"`, `"✦"`, `"~"`, or any short symbol |
+| `ornimg`, `ornh` | Use an image from `_press/images/` as the ornament instead (by name), and its height in inches | name, number like 0.3 |
 | `right` | Start every chapter on a right-hand page | `true` / `false` |
 | `scene`, `sceneimg` | Scene break symbol, or an image name to use instead | text |
 
