@@ -290,13 +290,28 @@ body.dragging iframe{pointer-events:none}
       <h2>End matter library</h2>
       <p class="hint">Saved on this computer and reusable in any book. Tick the ones this book should include, in order.</p>
       <div class="list" id="endList"></div>
-      <button id="btnNewEnd">New end matter page</button>
+      <label>New page from a template<select id="endTemplate">
+        <option value="about">About the Author (photo + a few lines)</option>
+        <option value="blurbs">Also by: covers with blurbs</option>
+        <option value="covers">Also by: a row of covers</option>
+        <option value="series">Also by: list by series</option>
+        <option value="thanks">Thank you / website / newsletter</option>
+        <option value="blank">Blank page</option>
+      </select></label>
+      <button id="btnNewEnd">Add this page</button>
     </section>
     <section id="endEditor" hidden>
       <h2>Edit page</h2>
       <label>Name<input type="text" id="e_name"></label>
+      <label>Text on this page<select id="e_align"><option value="left">Left</option><option value="center">Centered</option></select></label>
       <label>Content<textarea class="tall" id="e_text"></textarea></label>
-      <p class="hint"><code># Heading</code> for a title. <code>[[image:Author photo|2in]]</code> places an image; several on one line sit side by side, good for covers.</p>
+      <div class="hint endhelp">
+        <p><code>[[image:Author photo|2in]]</code> places the image named <i>Author photo</i> from the Images tab, 2 inches wide. Name your images to match.</p>
+        <p><code># Heading</code> is the page title. <code>## Series name</code> is a small subheading.</p>
+        <p><b>Cover beside a blurb:</b> an image on its own line with the title and a line or two right under it (no blank line between).</p>
+        <p><b>Covers in a row:</b> several images on one line. Add a caption with a third part: <code>[[image:Cover One|1.2in|Book Title]]</code></p>
+        <p><code>- Book title</code> makes a list. A line starting with <code>&gt;</code> is small print, centered, good for a website.</p>
+      </div>
       <button id="btnDelEnd">Delete this page</button>
     </section>
   </div>
@@ -416,9 +431,17 @@ Kit found the keeper in the lamp room, polishing glass that did not need polishi
 
 "You've been here before," he said, without turning around.`;
 
+const END_TEMPLATES = {
+  about: {name:"About the Author", align:"center", text:"# About the Author\n\n[[image:Author photo|1.8in]]\n\nWrite a few lines about yourself here: where you live, what you write, and what you love besides writing.\n\n> Find me at yourwebsite.com"},
+  blurbs: {name:"Also by the Author", align:"left", text:"# Also by the Author\n\n[[image:Cover One|1.1in]]\n**First Book Title**\nOne or two lines about this book: what it's about, and why a reader of this one will like it.\n\n[[image:Cover Two|1.1in]]\n**Second Book Title**\nOne or two lines about this one.\n\n> Find all my books at yourwebsite.com"},
+  covers: {name:"Also by (covers)", align:"center", text:"# Also by the Author\n\n[[image:Cover One|1.1in|First Book]] [[image:Cover Two|1.1in|Second Book]] [[image:Cover Three|1.1in|Third Book]]\n\n> Find all my books at yourwebsite.com"},
+  series: {name:"Also by (series list)", align:"center", text:"# Also by the Author\n\n## The Series Name\n- Book One Title\n- Book Two Title\n- Book Three Title\n\n## Standalone Novels\n- Another Book Title\n- And Another\n\n> Find all my books at yourwebsite.com"},
+  thanks: {name:"Thank You for Reading", align:"center", text:"# Thank You for Reading\n\nIf you enjoyed this book, a short review helps other readers find it.\n\nFor news about new books, sign up for my newsletter.\n\n> yourwebsite.com"},
+  blank: {name:"New page", align:"left", text:"# New page\n\n"}
+};
 const DEFAULT_END = [
-  {id:"about", name:"About the Author", text:"# About the Author\n\n[[image:Author photo|1.8in]]\n\nWrite a few lines about yourself here. Where you live, what you write, and where readers can find you."},
-  {id:"alsoby", name:"Also by the author", text:"# Also by the Author\n\nList your other books here, one per line.\n\nAdd covers side by side by putting several image tags on one line."}
+  {id:"about", ...END_TEMPLATES.about},
+  {id:"alsoby", ...END_TEMPLATES.blurbs}
 ];
 
 let endLib = [];
@@ -510,12 +533,44 @@ function splitChapters(text, fallbackTitle, how, marker){
   if(out.length > 1) out = out.filter(c => c.text.trim());
   return out;
 }
+/* end matter pages: blocks separated by blank lines */
+function endHTML(e, s){
+  const blocks = String(e.text||"").replace(/\r\n?/g,"\n").split(/\n\s*\n/);
+  const onlyImgs = l => { const t = l.trim(); IMG_RE.lastIndex = 0; const ok = t !== "" && t.replace(IMG_RE,"").trim() === "" && IMG_RE.test(t); IMG_RE.lastIndex = 0; return ok; };
+  const figs = l => [...l.matchAll(IMG_RE)].map(m => { const tag = imageTag(m[1].trim(), m[2] && m[2].trim()); return m[3] ? `<figure>${tag}<figcaption>${inline(m[3].trim())}</figcaption></figure>` : tag; });
+  let html = "", titled = false;
+  for(const b of blocks){
+    const lines = b.split("\n").map(l => l.trim()).filter(Boolean); if(!lines.length) continue;
+    let i = 0, list = [];
+    const flush = () => { if(list.length){ html += `<ul>${list.map(x=>`<li>${inline(x)}</li>`).join("")}</ul>`; list = []; } };
+    /* cover beside a blurb: an image alone on the first line, text right under it */
+    if(lines.length > 1 && onlyImgs(lines[0]) && [...lines[0].matchAll(IMG_RE)].length === 1 && !lines[1].startsWith("#") && !onlyImgs(lines[1])){
+      const m = [...lines[0].matchAll(IMG_RE)][0];
+      html += `<div class="bookrow"><div class="cover">${imageTag(m[1].trim(), (m[2]&&m[2].trim())||"1.1in")}</div><div class="blurb">${lines.slice(1).map(l=>`<p>${inline(l)}</p>`).join("")}</div></div>`;
+      continue;
+    }
+    for(; i < lines.length; i++){
+      const l = lines[i];
+      if(/^#\s+/.test(l) && !titled){ flush(); html += `<h2>${inline(l.replace(/^#\s+/,""))}</h2>`; titled = true; continue; }
+      if(/^#{1,3}\s+/.test(l)){ flush(); html += `<h3 class="sub">${inline(l.replace(/^#{1,3}\s+/,""))}</h3>`; continue; }
+      if(/^[-*]\s+/.test(l)){ list.push(l.replace(/^[-*]\s+/,"")); continue; }
+      flush();
+      if(SCENE_RE.test(l)){ html += `<div class="scene">${esc(s.scene||"* * *")}</div>`; continue; }
+      if(/^>\s?/.test(l)){ html += `<p class="fine">${inline(l.replace(/^>\s?/,""))}</p>`; continue; }
+      if(onlyImgs(l)){ const f = figs(l); html += f.length > 1 || /\|[^\]|]*\|/.test(l) ? `<div class="imgrow">${f.join("")}</div>` : `<div class="solo">${f.join("")}</div>`; continue; }
+      html += `<p>${inline(l).replace(IMG_RE,(m,n,w)=>imageTag(n.trim(), w&&w.trim()))}</p>`;
+    }
+    flush();
+  }
+  return `<section class="endmatter${e.align==="center"?" center":""}">${html}</section>`;
+}
 function imageTag(name, width){
   const src = images[name];
-  if(!src) return `<span class="missing">[missing image: ${esc(name)}]</span>`;
+  if(!src){ const w = String(width||"1.2in"), m = w.match(/^([0-9.]+) *in$/), ratio = /cover/i.test(name) ? 1.5 : 1.2;
+    return `<span class="missing" style="width:${esc(w)};${m?`height:${(parseFloat(m[1])*ratio).toFixed(2)}in`:""}">Add an image named “${esc(name)}” on the Images tab</span>`; }
   return `<img src="${src}" alt="${esc(name)}" style="${width?`width:${esc(width)}`:""}">`;
 }
-const IMG_RE = /\[\[image:([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+const IMG_RE = /\[\[image:([^\]|]+)(?:\|([^\]|]+))?(?:\|([^\]]+))?\]\]/g;
 function bodyHTML(text, s, isChapter){
   const paras = []; let afterBreak = true; let firstDone = !isChapter;
   for(const raw of text.replace(/\r\n?/g,"\n").split("\n")){
@@ -600,10 +655,23 @@ p.first::first-letter{ ${s.first==="both"||s.first==="dropcap"?`float:left; font
 h3.sub{ font-family:"${s.hfont}",serif; font-weight:400; font-size:1.15em; text-align:center; margin:1.2em 0 .6em; break-after:avoid; }
 .endmatter h2{ font-family:"${s.hfont}",serif; font-weight:400; text-align:center; font-size:${s.hsize}pt; margin:${(s.sink*0.6).toFixed(2)}in 0 1.2em; }
 .endmatter p{ text-indent:0; margin:0 0 .7em; text-align:left; }
-.imgrow{ display:flex; justify-content:center; gap:.18in; margin:.6em 0 1em; break-inside:avoid; }
+.imgrow{ display:flex; justify-content:center; flex-wrap:wrap; gap:.18in; margin:.6em 0 1em; break-inside:avoid; }
+.imgrow figure{ margin:0; text-align:center; font-size:.78em; line-height:1.3; }
+.imgrow figcaption{ margin-top:.35em; }
+.bookrow{ display:flex; gap:.22in; align-items:flex-start; margin:0 0 .28in; break-inside:avoid; }
+.bookrow .cover{ flex:none; }
+.bookrow .cover img{ display:block; height:auto; max-height:2.4in; }
+.bookrow .blurb{ flex:1; min-width:0; }
+.endmatter .bookrow .blurb p{ margin:0 0 .35em; text-align:left; text-indent:0; }
+.endmatter ul{ margin:0 0 1em 1.1em; padding:0; }
+.endmatter li{ margin:0 0 .25em; }
+.endmatter.center p, .endmatter.center li{ text-align:center; }
+.endmatter.center ul{ list-style:none; margin-left:0; }
+.endmatter .fine{ font-size:.82em; font-style:italic; text-align:center; margin-top:1.4em; }
+.endmatter .solo{ text-align:center; margin:.6em 0 1em; }
 .imgrow img{ max-width:100%; max-height:3in; height:auto; }
 img{ max-width:100%; }
-.missing{ color:#b00; font-family:sans-serif; font-size:.8em; }
+.missing{ display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; min-height:.6in; padding:.1in; border:1px dashed #b88; color:#a33; font-family:sans-serif; font-size:7.5pt; line-height:1.3; text-align:center; vertical-align:top; }
 `;
 }
 
@@ -631,14 +699,7 @@ ${bodyHTML(c.text, s, true)}
 </section>`;
   }).join("\n");
   const toc = book.toc ? `<section class="front toc"><h2>Contents</h2><ol>${book.chapters.map((c,i)=>`<li><a href="#ch${i+1}"><span class="t">${inline(c.title)}</span><span class="pn"></span></a></li>`).join("")}</ol></section>` : "";
-  const ends = book.endIds.map(id => endLib.find(e => e.id===id)).filter(Boolean).map(e => {
-    const t = e.text.replace(/^#\s+(.+)$/m, (m,h)=>`\u0000H${h}`);
-    const parts = t.split("\n");
-    let html = "";
-    const rest = [];
-    for(const l of parts){ if(l.startsWith("\u0000H")) html += `<h2>${inline(l.slice(2))}</h2>`; else rest.push(l); }
-    return `<section class="endmatter">${html}${bodyHTML(rest.join("\n"), s).replace(/ class="noindent"/g,"")}</section>`;
-  }).join("\n");
+  const ends = book.endIds.map(id => endLib.find(e => e.id===id)).filter(Boolean).map(e => endHTML(e, s)).join("\n");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?${fams}&display=swap">
 <script type="text/css" id="bookcss">${bookCSS(s)}<\/script>
@@ -860,13 +921,18 @@ function renderEnd(){
 }
 function openEnd(){
   const e = endLib.find(x => x.id===selEnd); if(!e) { $("endEditor").hidden = true; return; }
-  $("endEditor").hidden = false; $("e_name").value = e.name; $("e_text").value = e.text;
+  $("endEditor").hidden = false; $("e_name").value = e.name; $("e_text").value = e.text; $("e_align").value = e.align === "center" ? "center" : "left";
 }
 $("e_name").addEventListener("input", ev => { const e = endLib.find(x=>x.id===selEnd); if(e){ e.name = ev.target.value; renderEnd(); saveLocal(); }});
+$("e_align").addEventListener("change", ev => { const e = endLib.find(x=>x.id===selEnd); if(e){ e.align = ev.target.value; saveLocal(); scheduleRefresh(); }});
 $("e_text").addEventListener("input", ev => { const e = endLib.find(x=>x.id===selEnd); if(e){ e.text = ev.target.value; saveLocal(); scheduleRefresh(); }});
 $("btnNewEnd").addEventListener("click", () => {
-  const id = "end" + Date.now();
-  endLib.push({id, name:"New page", text:"# New page\n\n"}); selEnd = id; renderEnd(); openEnd(); saveLocal();
+  const t = END_TEMPLATES[$("endTemplate").value] || END_TEMPLATES.blank;
+  let name = t.name, n = 2; while(endLib.some(x => x.name.toLowerCase() === name.toLowerCase())) name = t.name + " " + (n++);
+  const id = mode === "folder" ? name : "end" + Date.now();
+  endLib.push({id, name, align:t.align, text:t.text}); selEnd = id; renderEnd(); openEnd(); saveLocal();
+  if(book && !book.endIds.includes(id)){ book.endIds.push(id); renderEnd(); saveLocal(); scheduleRefresh(); }
+  setStatus(`Added "${name}" and ticked it for this book. Swap in your own words and images.`);
 });
 let delArmed = false;
 $("btnDelEnd").addEventListener("click", ev => {
@@ -999,7 +1065,8 @@ function bookFiles(b){
 function sharedFiles(){
   const files=[];
   endLib.forEach(e=>files.push({path:"_press/end-matter/"+fileSafe(e.name)+".md",text:String(e.text||"")}));
-  files.push({path:"_press/library.json",text:JSON.stringify({app:"Moss Press",format:1,endMatterOrder:endLib.map(e=>fileSafe(e.name))},null,2)+"\n"});
+  const align={};endLib.forEach(e=>{if(e.align==="center")align[fileSafe(e.name)]="center"});
+  files.push({path:"_press/library.json",text:JSON.stringify({app:"Moss Press",format:1,endMatterOrder:endLib.map(e=>fileSafe(e.name)),centered:Object.keys(align)},null,2)+"\n"});
   return files;
 }
 
@@ -1070,7 +1137,8 @@ async function folderLoad(){
     const t=await rd(root,"_press/end-matter/"+f.name,"_press/end-matter/"+f.name);if(t==null)continue;
     const name=f.name.replace(/\.(md|txt|markdown)$/i,"");ends.push({id:name,name,text:t});ownedEnd.add(f.name);
   }
-  let order=[];try{order=(JSON.parse(await rd(root,"_press/library.json","_press/library.json")||"{}").endMatterOrder)||[]}catch(x){}
+  let order=[],centered=[];try{const lj=JSON.parse(await rd(root,"_press/library.json","_press/library.json")||"{}");order=lj.endMatterOrder||[];centered=lj.centered||[]}catch(x){}
+  ends.forEach(e=>{if(centered.includes(e.name))e.align="center"});
   ends.sort((a,c)=>{const i=order.indexOf(a.name),j=order.indexOf(c.name);return (i<0?999:i)-(j<0?999:j)||a.name.localeCompare(c.name)});
   /* images, read as data URLs for the preview */
   const imgs={};ownedImg=new Map();

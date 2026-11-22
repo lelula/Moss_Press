@@ -104,20 +104,33 @@ The keeper opened the door before she knocked.
 
 ## End matter: `_press/end-matter/<Name>.md`
 
-One file per page, shared by every book. Change it once and every book that includes it updates.
+One file per page, shared by every book. Change it once and every book that includes it updates. A book includes a page by listing its name in `endPages` in its `press.json`.
+
+Blocks are separated by blank lines:
 
 ```
 # Also by the Author
 
-The Lighthouse Keeper
-The Winter Road
+[[image:Cover One|1.1in]]
+**The Lighthouse Keeper**
+A storm, a lighthouse, and a stranger the keeper has seen before.
 
-[[image:Cover One|1.4in]] [[image:Cover Two|1.4in]]
+[[image:Cover One|1.1in|The Lighthouse Keeper]] [[image:Cover Two|1.1in|The Winter Road]]
+
+## The Lighthouse Series
+- The Lighthouse Keeper
+- The Winter Road
+
+> Find all my books at yourwebsite.com
 ```
 
-- `# Heading` becomes the page title.
-- Several image tags on one line sit side by side, which suits a row of covers.
-- A book includes a page by listing its name in `endPages` in its `press.json`.
+- `# Heading`: the page title (the first one only). `## Heading`: a small centered subheading, good for series names.
+- `[[image:Name|width]]`: an image from `_press/images/`, by file name without the extension. Width in inches, like `1.1in`.
+- **Cover beside a blurb:** an image alone on a line, with the title and a line or two directly under it (no blank line between). It lays out as cover on the left, text on the right.
+- **Covers in a row:** several image tags on one line. A third part is a caption under the cover: `[[image:Cover One|1.1in|Book Title]]`. Three covers at 1.1 in fit a 5.5 in wide book.
+- `- item`: a list. A line starting with `>`: small italic centered print, for a website or newsletter line.
+- Text alignment for the whole page (left or centered) is set in the app and stored in `_press/library.json` under `centered` (a list of page names).
+- If an image isn't in the library yet, the preview shows a dashed placeholder naming it, so the writer knows what to add.
 
 ## Working alongside the open app
 

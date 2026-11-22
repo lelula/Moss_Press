@@ -39,7 +39,7 @@ Moss Press can't run inside a Claude artifact, because artifacts aren't allowed 
 - **Chapter openings:** "Chapter One", "Chapter 1" or just the title; drop cap and small caps; an ornament; start every chapter on a right-hand page.
 - **Scene breaks:** a line of `***` becomes your symbol, or your own drawn ornament image.
 - **Front matter:** title page, copyright page, dedication and table of contents, all unnumbered.
-- **End matter library:** About the Author, Also by, newsletter pages and so on, written once and reused in any book. Images sit side by side, good for a row of covers.
+- **End matter library:** About the Author, Also by, newsletter pages and so on, written once and reused in any book. Start from a template: covers with blurbs, a row of covers with captions, a list by series, or a thank-you page with your website. Each page can be left-aligned or centered.
 - **Images:** author photos, covers and ornaments.
 - **Import:** one file for the whole book or one per chapter, plain text or Markdown. Choose how chapters split: at `# Heading` lines and lines like "Chapter 3" or "Prologue", at short title lines, at page breaks, or at a marker line you pick. Anything that lands wrong is quick to fix with **Split chapter at cursor** and **Join with next chapter**. Coming from Scrivener? Compile to Plain Text or MultiMarkdown with chapter titles on (MultiMarkdown keeps your italics).
 - **Library:** all your books in one place, with a book switcher.
