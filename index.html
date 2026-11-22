@@ -701,6 +701,7 @@ ${bodyHTML(c.text, s, true)}
   const toc = book.toc ? `<section class="front toc"><h2>Contents</h2><ol>${book.chapters.map((c,i)=>`<li><a href="#ch${i+1}"><span class="t">${inline(c.title)}</span><span class="pn"></span></a></li>`).join("")}</ol></section>` : "";
   const ends = book.endIds.map(id => endLib.find(e => e.id===id)).filter(Boolean).map(e => endHTML(e, s)).join("\n");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>${esc(book.title||"Book")}</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?${fams}&display=swap">
 <script type="text/css" id="bookcss">${bookCSS(s)}<\/script>
 <style>${PREVIEW_CSS}</style>
@@ -710,7 +711,7 @@ ${bodyHTML(c.text, s, true)}
   function report(msg){ try{ parent.postMessage(Object.assign({mossPress:true}, msg), "*"); }catch(e){} }
   if(!window.Paged){ report({error:"Couldn't load the page layout engine. Check your internet connection and refresh."}); return; }
   class Openers extends Paged.Handler{
-    afterPageLayout(page){ if(page.querySelector(".chapter-head") || page.querySelector(".endmatter > h2")) page.classList.add("opener"); }
+    afterPageLayout(page){ if(page.querySelector(".chapter-head") || page.querySelector(".endmatter")) page.classList.add("opener"); }
   }
   Paged.registerHandlers(Openers);
   function finalize(){
@@ -990,7 +991,9 @@ $("btnPrint").addEventListener("click", () => {
   const w = front && front.contentWindow;
   if(!w || !w.document.querySelector(".pagedjs_pages")){ setStatus("Wait for the preview to finish laying out, then export."); return; }
   setStatus("In the print dialog choose Save as PDF, Margins: None, and turn off Headers and footers.");
+  const pageTitle = document.title; document.title = (book.title || "Book").trim() || "Book";
   w.focus(); w.print();
+  setTimeout(() => { document.title = pageTitle; }, 1500);
 });
 
 /* =====================================================================
