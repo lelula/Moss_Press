@@ -61,7 +61,8 @@ textarea.tall{min-height:260px}
 .note{border-left:3px solid var(--warn);background:var(--warn-soft);padding:8px 10px;border-radius:4px;font-size:13px}
 .note.ok{border-left-color:var(--moss);background:var(--moss-soft)}
 .proof{flex:1;min-width:0;display:flex;flex-direction:column}
-.proof iframe{flex:1;border:0;width:100%;background:#8a8a84}
+.proof iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#8a8a84}
+.proof iframe.back{visibility:hidden;pointer-events:none}
 code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--moss-soft);padding:1px 4px;border-radius:3px}
 [hidden]{display:none!important}
 .nostore aside,.nostore #bookSel,.nostore #btnNewBook,.nostore #btnRefresh,.nostore #btnPrint{display:none!important}
@@ -299,7 +300,7 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var
   </div>
 </aside>
 
-<div class="proof"><iframe id="proof" title="Book proof"></iframe>
+<div class="proof"><iframe id="proof" title="Book proof"></iframe><iframe id="proof2" class="back" title="Book proof (preparing)" aria-hidden="true" tabindex="-1"></iframe>
   <div class="overlay" id="setup" hidden><div class="box">
     <h2>Where should your books live?</h2>
     <p>Pick one to start. You can change it later from the Library tab.</p>
@@ -656,17 +657,44 @@ function saveLocal(){ markBook(); markShared(); }
 let timer = null;
 function scheduleRefresh(){ clearTimeout(timer); timer = setTimeout(refresh, book.chapters.length > 15 ? 2500 : 900); }
 document.querySelector("aside").addEventListener("input", e => {
-  if(e.target.closest("#chapterEditor") || e.target.closest("#endEditor") || e.target.type==="file") return;
+  if(e.target.closest("#chapterEditor") || e.target.closest("#endEditor") || e.target.closest("#imgList") || e.target.closest(".panel[data-panel=library]") || e.target.type==="file") return;
   readForm(); saveLocal(); scheduleRefresh();
 });
 
+let front = null, back = null, renderSeq = 0, keepPlace = null;
+function wherePreview(){
+  try{
+    const w = front.contentWindow, pages = [...w.document.querySelectorAll(".pagedjs_page")];
+    if(!pages.length) return null;
+    const i = pages.findIndex(p => p.getBoundingClientRect().bottom > 4);
+    if(i < 0) return null;
+    return {i, off: pages[i].getBoundingClientRect().top};
+  }catch(e){ return null; }
+}
 function refresh(){
   readForm();
   setStatus("Laying out pages…");
-  $("proof").srcdoc = buildDoc();
+  if(!front){ front = $("proof"); back = $("proof2"); }
+  keepPlace = wherePreview() || keepPlace;
+  const seq = ++renderSeq; back.dataset.seq = String(seq);
+  back.srcdoc = buildDoc();
+}
+function swapPreview(){
+  try{
+    if(keepPlace){
+      const w = back.contentWindow, pages = w.document.querySelectorAll(".pagedjs_page");
+      const p = pages[Math.min(keepPlace.i, pages.length-1)];
+      if(p) w.scrollTo(0, p.getBoundingClientRect().top + w.scrollY - keepPlace.off);
+    }
+  }catch(e){}
+  back.classList.remove("back"); back.removeAttribute("aria-hidden"); back.removeAttribute("tabindex");
+  front.classList.add("back"); front.setAttribute("aria-hidden","true"); front.setAttribute("tabindex","-1");
+  [front, back] = [back, front];
 }
 window.addEventListener("message", e => {
   const d = e.data; if(!d || !d.mossPress) return;
+  if(!back || e.source !== back.contentWindow || back.dataset.seq !== String(renderSeq)) return;
+  if(!d.error) swapPreview();
   if(d.error){ setStatus(d.error); return; }
   setStatus(`${d.pages} pages`);
   gutterCheck(d.pages);
@@ -812,7 +840,7 @@ $("fileImg").addEventListener("change", async e => {
 
 $("btnRefresh").addEventListener("click", refresh);
 $("btnPrint").addEventListener("click", () => {
-  const w = $("proof").contentWindow;
+  const w = front && front.contentWindow;
   if(!w || !w.document.querySelector(".pagedjs_pages")){ setStatus("Wait for the preview to finish laying out, then export."); return; }
   setStatus("In the print dialog choose Save as PDF, Margins: None, and turn off Headers and footers.");
   w.focus(); w.print();
