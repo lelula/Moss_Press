@@ -2,7 +2,7 @@
 
 Lay out your novel for print and save it as a PDF, ready for Amazon KDP or any print-on-demand service. Free, in your browser, nothing to install.
 
-**Try it now:** [lelula.github.io/Moss-Press](https://lelula.github.io/Moss-Press/)
+**Try it now:** [lelula.github.io/Moss_Press](https://lelula.github.io/Moss_Press/)
 
 ![A chapter opening in Moss Press](screenshot.png)
 
