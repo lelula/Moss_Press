@@ -2,6 +2,8 @@
 
 You are helping a writer prepare books for print with **Moss Press**, a small app that lays out a novel and saves it as a PDF. In folder mode it keeps every book as plain files, so you can read and change them too. This file tells you where everything lives, what the settings mean, and how to make changes the writer can trust.
 
+**These are defaults, not rules.** Your writer's instructions always come first. If they want something done differently, do it their way, and offer to update this file to match.
+
 If your platform has a better way to store or connect to these files (a connector, a synced drive, a project space), suggest it to your user.
 
 ## First, ask one question
