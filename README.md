@@ -44,6 +44,7 @@ Moss Press can't run inside a Claude artifact, because artifacts aren't allowed 
 - **Picture and coloring books:** add a stack of images at once and each becomes its own full page, centered, with no heading, header or page number, and a blank back if you want one. If you're using lots of big images, save to a folder rather than the browser.
 - **Import:** one file for the whole book or one per chapter, plain text or Markdown. Choose how chapters split: at `# Heading` lines and lines like "Chapter 3" or "Prologue", at short title lines, at page breaks, or at a marker line you pick. Anything that lands wrong is quick to fix with **Split chapter at cursor** and **Join with next chapter**. Coming from Scrivener? Compile to Plain Text or MultiMarkdown with chapter titles on (MultiMarkdown keeps your italics).
 - **Library:** all your books in one place, with a book switcher.
+- **Themes:** Light, Dark, Sepia or Moss, matching the Moss Writing Desk. The pages stay white, because that's what prints.
 - **Backups:** Download everything gives you every book, your end matter and your images as a zip of plain files. A project file carries one book anywhere.
 
 ## Which browser?

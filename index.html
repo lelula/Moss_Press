@@ -15,14 +15,24 @@
 <style>
 /* Layout: settings column on the left, live book spreads on the right, like a print shop's proofing table */
 :root{
-  --paper:#f3f1ea; --panel:#fbfaf6; --ink:#24302a; --muted:#66706a; --line:#d9d6cb;
-  --moss:#4f6b4a; --moss-soft:#e3eadf; --warn:#9a5b1e; --warn-soft:#f6e8d6;
   --display:"Fraunces", Georgia, serif; --ui:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
-  color-scheme: light;
 }
-@media (prefers-color-scheme: dark){ :root{
-  --paper:#1b201d; --panel:#232a26; --ink:#e7ebe4; --muted:#a3ada6; --line:#3a433e;
-  --moss:#9cbd93; --moss-soft:#2e3a2f; --warn:#e2a866; --warn-soft:#3b2f22; color-scheme: dark; } }
+:root,[data-theme=light]{
+  --paper:#f3f1ea; --panel:#fbfaf6; --ink:#24302a; --muted:#66706a; --line:#d9d6cb;
+  --moss:#4f6b4a; --moss-soft:#e3eadf; --warn:#9a5b1e; --warn-soft:#f6e8d6; --desk:#8a8a84; color-scheme:light;
+}
+[data-theme=dark]{
+  --paper:#121418; --panel:#171a20; --ink:#e7e2d7; --muted:#959ba6; --line:#2a2f38;
+  --moss:#c9a45c; --moss-soft:#2a2820; --warn:#e0956a; --warn-soft:#3b2a20; --desk:#0b0d10; color-scheme:dark;
+}
+[data-theme=sepia]{
+  --paper:#f2e7d3; --panel:#eadcc3; --ink:#3a2e21; --muted:#6f5c46; --line:#cfbd9c;
+  --moss:#94521f; --moss-soft:#dfcfb2; --warn:#a8401f; --warn-soft:#ecd3bd; --desk:#b9a684; color-scheme:light;
+}
+[data-theme=moss]{
+  --paper:#161d18; --panel:#1b241e; --ink:#ece5cf; --muted:#a2aa96; --line:#314036;
+  --moss:#a6c47f; --moss-soft:#243028; --warn:#e2a46c; --warn-soft:#3b2f22; --desk:#0e1410; color-scheme:dark;
+}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 var(--ui);display:flex;flex-direction:column}
@@ -61,7 +71,8 @@ textarea.tall{min-height:260px}
 .note{border-left:3px solid var(--warn);background:var(--warn-soft);padding:8px 10px;border-radius:4px;font-size:13px}
 .note.ok{border-left-color:var(--moss);background:var(--moss-soft)}
 .proof{flex:1;min-width:0;display:flex;flex-direction:column}
-.proof iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#8a8a84}
+.proof iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--desk);color-scheme:light}
+.proof{background:var(--desk)}
 .proof iframe.back{visibility:hidden;pointer-events:none}
 code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--moss-soft);padding:1px 4px;border-radius:3px}
 [hidden]{display:none!important}
@@ -99,6 +110,7 @@ body.dragging iframe{pointer-events:none}
 </style>
 </head>
 <body class="nostore">
+<script>(function(){var t;try{t=localStorage.getItem("mossPress.theme")}catch(e){}if(["light","dark","sepia","moss"].indexOf(t)<0)t=(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";document.documentElement.dataset.theme=t})();</script>
 <header class="bar">
   <h1>Moss Press</h1>
   <select id="bookSel" aria-label="Switch book"></select>
@@ -129,6 +141,11 @@ body.dragging iframe{pointer-events:none}
         <button id="btnReload" hidden title="Pick up changes your AI agent or the Writing Desk made to the files">Reload from folder</button>
         <button id="btnChange">Change where I save</button>
       </div>
+    </section>
+    <section>
+      <h2>Look</h2>
+      <label>Theme<select id="themeSel"><option value="light">Light</option><option value="dark">Dark</option><option value="sepia">Sepia</option><option value="moss">Moss</option></select></label>
+      <p class="hint">Changes the app around your book. The pages stay white, because that's what prints.</p>
     </section>
     <section>
       <h2>Backups and moving books</h2>
@@ -704,7 +721,7 @@ img{ max-width:100%; }
 }
 
 const PREVIEW_CSS = `@media screen{
-  body{ background:#8a8a84; }
+  html, body{ background:transparent; }
   .pagedjs_pages{ display:flex; flex-wrap:wrap; justify-content:center; gap:2px 0; width:calc(var(--pagedjs-width) * 2); margin:20px auto; zoom:var(--z,1); }
   .pagedjs_page{ background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.35); margin-bottom:16px; }
   .pagedjs_first_page{ margin-left:var(--pagedjs-width); }
@@ -788,6 +805,8 @@ ${ends}
 
 /* ---------- UI wiring ---------- */
 const $ = id => document.getElementById(id);
+$("themeSel").value = document.documentElement.dataset.theme || "light";
+$("themeSel").addEventListener("change", e => { const t = e.target.value; document.documentElement.dataset.theme = t; try{ localStorage.setItem("mossPress.theme", t); }catch(err){} });
 const statusEl = $("status");
 function setStatus(t){ statusEl.textContent = t; }
 
