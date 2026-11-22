@@ -24,7 +24,8 @@ Library folder/
     chapters/
       01 The Storm.md
       02 Morning.md
-    trash/                  chapters removed in either app (leave it alone)
+    trash/                  removed chapters, plus before-last-import/ (the chapters
+                            replaced by the most recent import). Leave it alone.
     summaries.md, bible.md, where-i-left-off.md, days.json
                             Writing Desk files: Moss Press ignores them
   Another Book/

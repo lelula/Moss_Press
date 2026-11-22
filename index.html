@@ -797,7 +797,7 @@ $("fileText").addEventListener("change", async e => {
     const name = f.name.replace(/\.[^.]+$/,"").replace(/^\d+[\s._-]*/,"") || "Untitled";
     found.push(...splitChapters(txt, name, $("splitHow").value, $("splitMarker").value));
   }
-  if($("replaceOnImport").checked) (book._removed=book._removed||[]).push(...book.chapters.filter(c=>c._file));
+  if($("replaceOnImport").checked) (book._removed=book._removed||[]).push(...book.chapters.filter(c=>c._file).map(c=>Object.assign(c,{_why:"import"})));
   book.chapters = $("replaceOnImport").checked ? found : book.chapters.concat(found);
   selChapter = -1; $("chapterEditor").hidden = true;
   e.target.value = "";
@@ -1070,9 +1070,20 @@ async function writeBook(id){
   }
   for(const f of files){const k=id+"/"+f.path;if(written.get(k)!==f.text){stamps.set(k,await writeFile(dir,f.path,f.text));written.set(k,f.text)}}
   const keep=new Set(files.map(f=>f.path));
-  /* chapters removed in the Press go to the book's trash folder, never deleted outright */
-  for(const r of (b._removed||[])){let n=fileSafe(r.title||"Removed chapter"),p="trash/chapters/"+n+".md",k=2;while(await readText(dir,p))p="trash/chapters/"+n+" ("+(k++)+").md";await writeFile(dir,p,chapterFile(r));
-    if(r._file&&!keep.has("chapters/"+r._file)){await removeFile(dir,"chapters/"+r._file);written.delete(id+"/chapters/"+r._file);stamps.delete(id+"/chapters/"+r._file)}}
+  /* what happens to chapters that left the book:
+     removed on purpose -> one copy in trash/chapters (the Writing Desk shows these with Restore)
+     replaced by an import -> trash/before-last-import, which each new import replaces (one undo, never a pile)
+     joined into another chapter -> nothing to keep, the words are in the joined chapter */
+  const gone=b._removed||[],imp=gone.filter(r=>r._why==="import");
+  if(imp.length){
+    for(const e of await entries(dir,"trash/before-last-import"))if(e.kind==="file")await removeFile(dir,"trash/before-last-import/"+e.name);
+    const st=chapterStems(imp);
+    for(let i=0;i<imp.length;i++)await writeFile(dir,"trash/before-last-import/"+st[i]+".md",chapterFile(imp[i]));
+  }
+  for(const r of gone){
+    if(!r._why){let n=fileSafe(r.title||"Removed chapter"),p="trash/chapters/"+n+".md",k=2;while(await readText(dir,p))p="trash/chapters/"+n+" ("+(k++)+").md";await writeFile(dir,p,chapterFile(r))}
+    if(r._file&&!keep.has("chapters/"+r._file)){await removeFile(dir,"chapters/"+r._file);written.delete(id+"/chapters/"+r._file);stamps.delete(id+"/chapters/"+r._file)}
+  }
   b._removed=[];
   for(const c of b.chapters){if(c._file&&!keep.has("chapters/"+c._file)){await removeFile(dir,"chapters/"+c._file);written.delete(id+"/chapters/"+c._file);stamps.delete(id+"/chapters/"+c._file)}}
   b.chapters.forEach((c,i)=>{c._file=stems[i]+".md"});
@@ -1358,10 +1369,10 @@ $("btnJoin").addEventListener("click", e => {
   clearTimeout(joinArmed); joinArmed = 0; e.target.textContent = "Join with next chapter";
   const keepTitle = nx.title && !/^(new chapter|chapter \d+|untitled)$/i.test(nx.title.trim());
   c.text = (c.text.replace(/\s+$/,"") + "\n\n" + (keepTitle ? nx.title + "\n\n" : "") + (nx.text||"")).trim();
-  (book._removed = book._removed || []).push(nx);
+  nx._why = "join"; (book._removed = book._removed || []).push(nx);
   book.chapters.splice(selChapter+1, 1);
   renderChapters(); openChapter(); saveLocal(); scheduleRefresh();
-  setStatus(mode==="folder" ? "Joined. The other chapter's old file is kept in the book's trash folder, just in case." : "Joined.");
+  setStatus("Joined.");
 });
 
 </script>
