@@ -69,7 +69,11 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var
 #bookSel{width:auto;max-width:260px;font:600 14px var(--ui);padding:6px 8px}
 .proof{position:relative}
 .overlay{position:absolute;inset:0;z-index:5;overflow:auto;background:var(--paper);display:flex;justify-content:center;align-items:flex-start;padding:10vh 24px 40px}
-.overlay .box{max-width:560px;display:grid;gap:14px}
+.overlay .box{max-width:620px;display:grid;gap:14px}
+.steps{margin:0;padding-left:1.3em;display:grid;gap:12px;line-height:1.55}
+.steps li{padding-left:.2em}
+.steps b{color:var(--ink)}
+#welcome{padding-top:5vh}
 .overlay h2{font:600 28px/1.2 var(--display);margin:0}
 .overlay p{margin:0;color:var(--muted);line-height:1.55}
 .choice{display:grid;gap:4px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;cursor:pointer;font-weight:400}
@@ -302,6 +306,7 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var
 
   <div class="panel" data-panel="help" hidden>
     <section>
+      <p><button id="btnWelcome">Show the welcome guide</button></p>
       <h2>From Scrivener</h2>
       <p class="hint">Compile → format "Plain Text" or "MultiMarkdown", with chapter titles turned on. MultiMarkdown keeps italics as <code>*italic*</code>. Moss Press splits chapters at lines starting with <code>#</code> or at lines like "Chapter 3" or "Prologue". If your chapters start some other way, change <b>Split chapters at</b> before you import: short title lines, page breaks, or a marker line you choose. Anything that still lands wrong can be fixed with <b>Split chapter at cursor</b> and <b>Join with next chapter</b> under the chapter text.</p>
       <h2>Exporting the PDF</h2>
@@ -331,6 +336,22 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var
     <p style="font-size:13.5px">Your text never leaves your computer. The page only fetches fonts from Google Fonts and its page-layout engine, so stay online while you preview and export.</p>
     <p class="warnline" id="setupWarn" hidden></p>
     <p id="setupBack" hidden><button id="setupCancel">Back to my book</button></p>
+  </div></div>
+  <div class="overlay" id="welcome" hidden><div class="box">
+    <h2>Welcome to Moss Press</h2>
+    <p>Moss Press turns your finished manuscript into a print-ready PDF. Here's how it works.</p>
+    <ol class="steps">
+      <li><b>Get your file ready.</b> Moss Press reads plain text (.txt) and Markdown (.md); Markdown keeps your <i>italics</i>. From Word, use Save As, Plain Text. From Scrivener, compile to Plain Text or MultiMarkdown with chapter titles turned on.
+        <br><b>Start the file at your first chapter</b> (the Prologue or Chapter 1). Leave out the title page, copyright page and table of contents: Moss Press makes those for you.
+        <br>Put each chapter title on a line of its own.</li>
+      <li><b>Bring it in.</b> On the <b>Book</b> tab, choose how your chapters are marked under <b>Split chapters at</b>, then choose your file. One file for the whole book, or one file per chapter, both work.</li>
+      <li><b>Check the chapters.</b> Click a chapter's name on the Book tab to see and edit its title and text. If a chapter split in the wrong place, use <b>Split chapter at cursor</b> or <b>Join with next chapter</b>. For big rewrites, it's easier to edit in your writing program and import again.</li>
+      <li><b>Set the look once.</b> <b>Page</b> sets the trim size, margins, headers and page numbers. <b>Type</b> sets the fonts, chapter openings and scene breaks. Every chapter follows the same style automatically.</li>
+      <li><b>Front and end matter.</b> The title page, copyright page, dedication and contents come from the Book tab. <b>End matter</b> (About the Author, Also by…) and <b>Images</b> (author photo, covers, your own scene-break ornaments) are shared by all your books: make them once, tick them in any book, and when you edit one, every book that uses it updates.</li>
+      <li><b>Make the PDF.</b> Press <b>Export PDF</b>, choose <b>Save as PDF</b>, set Margins to <b>None</b> and turn <b>Headers and footers</b> off.</li>
+    </ol>
+    <p><button class="primary" id="welcomeOk">Got it, let's go</button></p>
+    <p style="font-size:13.5px">You can open this again any time from the Help tab.</p>
   </div></div>
   <div class="overlay" id="reconnect" hidden><div class="box">
     <h2>Welcome back</h2>
@@ -475,6 +496,8 @@ function splitChapters(text, fallbackTitle, how, marker){
       cur.text += line + "\n";
     });
     out.forEach(c => c.text = c.text.trim());
+    /* a few words before the first chapter heading are a title page, not a chapter */
+    if(out.length > 1 && out[0].title === (fallbackTitle||"Untitled") && !MD_HEAD.test(text.split("\n").find(l=>l.trim())||"") && out[0].text.split(/\s+/).filter(Boolean).length < 40) out.shift();
   }
   /* a heading with nothing under it (a book title, a part page) just merges into what follows */
   if(out.length > 1) out = out.filter(c => c.text.trim());
@@ -1241,7 +1264,7 @@ function describeWhere(){
   $("btnReload").hidden=mode!=="folder";
 }
 function showSetup(back){
-  $("setup").hidden=false;$("reconnect").hidden=true;
+  $("setup").hidden=false;$("reconnect").hidden=true;const w=$("welcome");if(w)w.hidden=true;
   $("pickFolder").disabled=!canFolder;$("folderNo").hidden=canFolder;
   $("setupWarn").hidden=true;$("setupBack").hidden=!back;
 }
@@ -1374,6 +1397,13 @@ $("btnJoin").addEventListener("click", e => {
   renderChapters(); openChapter(); saveLocal(); scheduleRefresh();
   setStatus("Joined.");
 });
+
+/* ---------- first-run welcome guide ---------- */
+function showWelcome(){ $("welcome").hidden = false; $("welcome").scrollTop = 0; }
+$("welcomeOk").addEventListener("click", () => { $("welcome").hidden = true; try{ localStorage.setItem("mossPress.welcomed","1"); }catch(e){} });
+$("btnWelcome").addEventListener("click", showWelcome);
+document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("welcome").hidden) $("welcomeOk").click(); });
+(function(){ const b = begin; begin = async function(){ await b(); let seen = null; try{ seen = localStorage.getItem("mossPress.welcomed"); }catch(e){} if(!seen) showWelcome(); }; })();
 
 </script>
 </body>
