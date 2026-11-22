@@ -784,7 +784,7 @@ function renderImages(){
     return f;
   }));
 }
-function saveImages(){ if(mode==="folder"){ markImages(); return; } if(!store.set("mossPress.images", images)) setStatus("Images are too big for browser storage. Use a folder, or Save project file to keep them."); }
+function saveImages(){ if(mode==="folder"){ markImages(); return; } if(!store.set(IMG_KEY, images)) setStatus("Images are too big for browser storage. Use a folder, or Save project file to keep them."); }
 function loadImage(file){
   return new Promise(res => {
     const r = new FileReader();
@@ -830,7 +830,11 @@ $("btnPrint").addEventListener("click", () => {
      _press/images/<Name>.png           author photos, covers, ornaments
      _press/library.json                order of the end matter library
    ===================================================================== */
-const LIB_KEY="mossPress.library.v1", END_KEY="mossPress.endMatter", IMG_KEY="mossPress.images", MODE_KEY="mossPress.mode";
+const LIB_KEY="mossPress.library.v1", END_KEY="mossPress.v2.endMatter", IMG_KEY="mossPress.v2.images", MODE_KEY="mossPress.mode";
+/* the first Moss Press used these names; read them once as a starting point, never write to them */
+const OLD_END="mossPress.endMatter", OLD_IMG="mossPress.images";
+const getEnds=()=>store.get(END_KEY,null)||store.get(OLD_END,null);
+const getImgs=()=>store.get(IMG_KEY,null)||store.get(OLD_IMG,null);
 let mode=null;            /* "browser" | "folder" */
 let library={books:{}};   /* id -> book */
 let current=null;         /* id of the open book */
@@ -893,8 +897,8 @@ function sharedFiles(){
 /* ---------- browser storage ---------- */
 function browserLoad(){
   const lib=store.get(LIB_KEY,null);
-  endLib=store.get(END_KEY,DEFAULT_END.map(e=>({...e})));
-  images=store.get(IMG_KEY,{});
+  endLib=getEnds()||DEFAULT_END.map(e=>({...e}));
+  images=getImgs()||{};
   if(lib&&lib.books&&Object.keys(lib.books).length){library=lib;current=lib.current&&lib.books[lib.current]?lib.current:Object.keys(lib.books)[0];return}
   library={books:{}};
   const old=store.get("mossPress.book",null);   /* a single book from the earliest Moss Press */
@@ -1171,7 +1175,7 @@ async function startFolder(h){
   applyFolderData(data);
   /* first time in this folder: bring along the books kept in this browser */
   if(!Object.keys(library.books).length){
-    const lib=store.get(LIB_KEY,null),ends=store.get(END_KEY,null),imgs=store.get(IMG_KEY,null);
+    const lib=store.get(LIB_KEY,null),ends=getEnds(),imgs=getImgs();
     let n=0;
     if(lib&&lib.books)for(const k in lib.books){const b=lib.books[k];let id=fileSafe(b.title||"Untitled book"),base=id,i=2;while(library.books[id])id=base+" "+(i++);
       const endNames=(b.endIds||[]).map(x=>((ends||[]).find(e=>e.id===x)||{}).name).filter(Boolean);
